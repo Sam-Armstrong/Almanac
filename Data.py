@@ -414,13 +414,53 @@ class Data:
 
 
     def createTrainingData(self):
-        training_data = pandas.DataFrame(columns = ['goals1', 'goals_against1', 'pos1', 'comp_passes1', 'pass_acc1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'att_shots_against1', 
+        all_data = []
+
+        training_data = pandas.DataFrame(columns = ['Home/Away', 'goals1', 'goals_against1', 'pos1', 'comp_passes1', 'pass_acc1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'att_shots_against1', 
                                                     'comp_passes_against1', 'pass_acc_against1', 'saves1', 'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1', 
                                                     'crosses1', 'crosses_against1',' touches1', 'touches_against1', 'tackles1', 'interceptions1', 'inter_against1', 'duels1', 
                                                     'duels_against1', 'clearences1', 'offsides1', 'goals2', 'goals_against2', 'pos2', 'comp_passes2', 'pass_acc2', 'shots_on_t2', 
                                                     'att_shots2', 'shot_acc2', 'att_shots_against2', 'comp_passes_against2', 'pass_acc_against2', 'saves2', 'save_acc2', 'fouls2', 
                                                     'fouls_against2', 'corners2', 'corners_against2', 'crosses2', 'crosses_against2',' touches2', 'touches_against2', 'tackles2', 
                                                     'interceptions2', 'inter_against2', 'duels2', 'duels_against2', 'clearences2', 'offsides2', 'Win', 'Draw', 'Loss'])
+
+        for index, row in self.match_results.iterrows():
+            print(index, '/', len(self.match_results))
+            try:
+                date = row[0]
+                print('Date: ', date)
+                days_since_match = calculateDaysSince(date)
+                team1 = row[1].rstrip()
+                team2 = row[2].rstrip()
+                result = row[3]
+
+                team1_useful_data = self.findTeamStats(team1, date)
+                team2_useful_data = self.findTeamStats(team2, date)
+
+                if result == 2:
+                    result_array = [0, 0, 1]
+                    opposite_array = [1, 0, 0]
+                elif result == 1:
+                    result_array = [0, 1, 0]
+                    opposite_array = [0, 1, 0]
+                else:
+                    result_array = [1, 0, 0]
+                    opposite_array = [0, 0, 1]
+
+                full_list1 = [0] + team1_useful_data + team2_useful_data + result_array
+                full_list2 = [1] + team2_useful_data + team1_useful_data + opposite_array
+
+                all_data.append(full_list1)
+                all_data.append(full_list2)
+
+            except:
+                pass # Some matches do not have the correct past data to allow them to be included - hence they are passed over with this except
+
+            for data in all_data:
+                df_len = len(training_data)
+                training_data.loc[df_len] = data
+
+            training_data.to_csv('TrainingData.csv')
 
 
 if __name__ == '__main__':
