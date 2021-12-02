@@ -37,53 +37,69 @@ class Model(nn.Module):
         self.bn3 = nn.BatchNorm1d(240)
         self.bn4 = nn.BatchNorm1d(240)
 
+        self.bn = nn.BatchNorm1d(240)
+
     def forward(self, x):
-        x = self.dropout(x)
+        #x = self.dropout(x)
 
         x = self.fc1(x)
-        x = self.selu(x)
+        x = self.bn(x)
+        #x = self.selu(x)
 
         res = x.clone()
+        x = self.dropout(x)
+        
         x = self.fc2(x)
-        x = self.selu(x)
+        #x = self.selu(x)
         x = self.fc3(x)
         x = self.selu(x)
 
-        x += res
         x = self.bn1(x)
+        x += res
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc4(x)
-        x = self.selu(x)
+        #x = self.selu(x)
         x = self.fc5(x)
         x = self.selu(x)
-
-        x += res
+        
         x = self.bn2(x)
+        x += res
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc6(x)
-        x = self.selu(x)
+        #x = self.selu(x)
         x = self.fc7(x)
         x = self.selu(x)
 
-        x += res
         x = self.bn3(x)
+        x += res
+        
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc8(x)
-        x = self.selu(x)
+        #x = self.selu(x)
         x = self.fc9(x)
         x = self.selu(x)
 
-        x += res
         x = self.bn4(x)
+        x += res
+        
+
+        # #x = self.dropout(x)
+        # x = self.fc8(x)
+        # x = self.selu(x)
+        # x = self.bn1(x)
+        # #x = self.dropout(x)
+        # x = self.fc9(x)
+        # x = self.selu(x)
+        # x = self.bn2(x)
 
         x = self.fc10(x)
         x = self.softmax(x)
@@ -94,6 +110,7 @@ class Model(nn.Module):
 class Predictor:
     def __init__(self):
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        print(self.device)
         self.means = torch.zeros((40))
         self.stds = torch.zeros((40))
         self.model = Model().to(device = self.device)
@@ -122,7 +139,7 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 35
+        num_epochs = 50
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -149,14 +166,14 @@ class Predictor:
         train_set, val_set = torch.utils.data.random_split(train_data, [45000, X.shape[0] - 45000]) # Splits the training data into a train set and a validation set
 
         train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = 500, shuffle = True, num_workers = 4)
-        val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = 500, shuffle = False, num_workers = 4)
+        val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = 5000, shuffle = False, num_workers = 4)
 
         params = []
         params += self.model.parameters()
 
-        criterion = nn.CrossEntropyLoss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 1e-12) # 3e-5
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [50, 100], gamma = 0.5)
+        criterion = nn.L1Loss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-3) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
         def check_accuracy(dataset):
@@ -210,8 +227,8 @@ class Predictor:
 
             scheduler.step()
 
-            valid_accuracy = check_accuracy(val_dataloader)
-            print(valid_accuracy, '% Validation Accuracy')
+            # valid_accuracy = check_accuracy(val_dataloader)
+            # print(valid_accuracy, '% Validation Accuracy')
             print('Validation Loss: ', valid_loss)
 
             plot_data[epoch] = valid_loss

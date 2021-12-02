@@ -7,9 +7,10 @@ def test():
     predictor = Predictor()
     data = Data()
 
-    df = pandas.read_csv('TestOdds.csv')
+    df = pandas.read_csv('TestOdds2.csv')
     i = 0
     returns = 0
+    t_est = 0
 
     for index, row in df.iterrows():
         try:
@@ -46,15 +47,19 @@ def test():
             if est_return1 > 1 and est_return1 > est_return2 and est_return1 > est_return3:
                 chosen_bet = 0
                 chosen_odds = odds1
+                chosen_est = est_return1
             elif est_return2 > 1 and est_return2 >= est_return1 and est_return2 > est_return3:
                 chosen_bet = 1
                 chosen_odds = odds2
+                chosen_est = est_return2
             elif est_return3 > 1 and est_return3 >= est_return1 and est_return3 >= est_return2:
                 chosen_bet = 2
                 chosen_odds = odds3
+                chosen_est = est_return3
             else:
                 chosen_bet = -1
                 chosen_odds = -1
+                chosen_est = 0
 
             # if chance_win > chance_draw and chance_win > chance_loss:
             #     chosen_bet = 0
@@ -74,8 +79,10 @@ def test():
             elif chosen_bet == int(result):
                 i += 1
                 returns += chosen_odds
+                t_est += chosen_est
             else:
                 i += 1
+                t_est += chosen_est
 
             # print(team1, team2)
             # print(chosen_bet, result)
@@ -89,6 +96,7 @@ def test():
 
     print('i: ', i)
     print('Returns: ', round(returns, 3))
+    print('Expected Return: ', round(t_est / i, 3))
     print('Average Return: ', round(returns / i, 3))
 
 

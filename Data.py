@@ -357,6 +357,10 @@ class Data:
             try:
                 date = row[1]
                 days_since_match = calculateDaysSince(date)
+
+                if days_since_match < 16:
+                    raise
+
                 team1 = row[2].rstrip()
                 team2 = row[3].rstrip()
                 result = row[4]
