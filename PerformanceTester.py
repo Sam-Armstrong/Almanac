@@ -26,8 +26,9 @@ def test():
             prediction_data2 = [1] + (data.findTeamStats(team2, date)) + (data.findTeamStats(team1, date))
 
             prediction_data1 = np.array([prediction_data1])
-            prediction1 = predictor.predict(prediction_data1)
             prediction_data2 = np.array([prediction_data2])
+
+            prediction1 = predictor.predict(prediction_data1)
             prediction2 = predictor.predict(prediction_data2)
 
             chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)

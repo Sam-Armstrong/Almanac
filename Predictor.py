@@ -12,12 +12,16 @@ from Data import Data
 import matplotlib.pyplot as plt
 import numpy as np
 
+def MAPELoss(output, target):
+    loss = torch.mean(torch.abs((target - output) / target))
+    return loss
+
 class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
         self.dropout = nn.Dropout()
-        self.selu = nn.SELU()
+        self.selu = nn.GELU()
         self.gelu = nn.GELU()
         self.softmax = nn.Softmax(dim = -1)
         
@@ -44,13 +48,13 @@ class Model(nn.Module):
 
         x = self.fc1(x)
         x = self.bn(x)
-        #x = self.selu(x)
+        #x = self.selu(x) ##
 
         res = x.clone()
         x = self.dropout(x)
         
         x = self.fc2(x)
-        #x = self.selu(x)
+        #x = self.selu(x) ##
         x = self.fc3(x)
         x = self.selu(x)
 
@@ -61,7 +65,7 @@ class Model(nn.Module):
         x = self.dropout(x)
 
         x = self.fc4(x)
-        #x = self.selu(x)
+        #x = self.selu(x) ##
         x = self.fc5(x)
         x = self.selu(x)
         
@@ -72,7 +76,7 @@ class Model(nn.Module):
         x = self.dropout(x)
 
         x = self.fc6(x)
-        #x = self.selu(x)
+        #x = self.selu(x) ##
         x = self.fc7(x)
         x = self.selu(x)
 
@@ -84,7 +88,7 @@ class Model(nn.Module):
         x = self.dropout(x)
 
         x = self.fc8(x)
-        #x = self.selu(x)
+        #x = self.selu(x) ##
         x = self.fc9(x)
         x = self.selu(x)
 
@@ -115,7 +119,7 @@ class Predictor:
         self.stds = torch.zeros((40))
         self.model = Model().to(device = self.device)
         try:
-            self.model.load_state_dict(torch.load('model.pickle'))
+            self.model.load_state_dict(torch.load('BSF05.pickle'))
             self.means = torch.load('means.pt')
             self.stds = torch.load('stds.pt')
         except:
@@ -139,7 +143,7 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 50
+        num_epochs = 120
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -171,9 +175,9 @@ class Predictor:
         params = []
         params += self.model.parameters()
 
-        criterion = nn.L1Loss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
         optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-3) #3, 6, 10, 20, 30, 40, 50
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [100], gamma = 1e-3) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
         def check_accuracy(dataset):
@@ -208,6 +212,7 @@ class Predictor:
                 loss = criterion(scores.float(), labels.float()).float() # Calculates the loss of the forward pass using the loss function
                 train_loss += loss
 
+                self.model.zero_grad() ###
                 optimizer.zero_grad() # Resets the optimizer gradients to zero for each batch
                 loss.backward() # Backpropagates the network using the loss to calculate the local gradients
 
