@@ -21,7 +21,7 @@ class Model(nn.Module):
         super().__init__()
 
         self.dropout = nn.Dropout()
-        self.selu = nn.GELU()
+        self.selu = nn.SELU()
         self.gelu = nn.GELU()
         self.softmax = nn.Softmax(dim = -1)
         
@@ -54,56 +54,60 @@ class Model(nn.Module):
         x = self.dropout(x)
         
         x = self.fc2(x)
-        #x = self.selu(x) ##
+        x = self.selu(x) ##
         x = self.fc3(x)
         x = self.selu(x)
 
-        x = self.bn1(x)
+        
         x += res
+        x = self.bn1(x)
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc4(x)
-        #x = self.selu(x) ##
+        x = self.selu(x) ##
         x = self.fc5(x)
         x = self.selu(x)
         
-        x = self.bn2(x)
+        
         x += res
+        x = self.bn2(x)
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc6(x)
-        #x = self.selu(x) ##
+        x = self.selu(x) ##
         x = self.fc7(x)
         x = self.selu(x)
 
-        x = self.bn3(x)
+        
         x += res
+        x = self.bn3(x)
         
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc8(x)
-        #x = self.selu(x) ##
+        x = self.selu(x) ##
         x = self.fc9(x)
         x = self.selu(x)
 
-        x = self.bn4(x)
+        
         x += res
+        x = self.bn4(x)
         
 
-        # #x = self.dropout(x)
+        # x = self.dropout(x)
         # x = self.fc8(x)
         # x = self.selu(x)
-        # x = self.bn1(x)
-        # #x = self.dropout(x)
+        # #x = self.bn1(x)
+        # x = self.dropout(x)
         # x = self.fc9(x)
         # x = self.selu(x)
-        # x = self.bn2(x)
+        # #x = self.bn2(x)
 
         x = self.fc10(x)
         x = self.softmax(x)
@@ -119,7 +123,7 @@ class Predictor:
         self.stds = torch.zeros((40))
         self.model = Model().to(device = self.device)
         try:
-            self.model.load_state_dict(torch.load('BSF05.pickle'))
+            self.model.load_state_dict(torch.load('model.pickle'))
             self.means = torch.load('means.pt')
             self.stds = torch.load('stds.pt')
         except:
@@ -176,7 +180,7 @@ class Predictor:
         params += self.model.parameters()
 
         criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
+        optimizer = optim.Adam(params, lr = 2e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [100], gamma = 1e-3) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
