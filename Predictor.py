@@ -44,70 +44,53 @@ class Model(nn.Module):
         self.bn = nn.BatchNorm1d(240)
 
     def forward(self, x):
-        #x = self.dropout(x)
 
         x = self.fc1(x)
         x = self.bn(x)
-        #x = self.selu(x) ##
 
         res = x.clone()
         x = self.dropout(x)
         
         x = self.fc2(x)
-        x = self.selu(x) ##
+        x = self.selu(x)
         x = self.fc3(x)
         x = self.selu(x)
 
-        
-        x += res
         x = self.bn1(x)
+        x += res
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc4(x)
-        x = self.selu(x) ##
+        x = self.selu(x)
         x = self.fc5(x)
         x = self.selu(x)
         
-        
-        x += res
         x = self.bn2(x)
+        x += res
 
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc6(x)
-        x = self.selu(x) ##
+        x = self.selu(x)
         x = self.fc7(x)
         x = self.selu(x)
 
-        
-        x += res
         x = self.bn3(x)
+        x += res
         
-
         res = x.clone()
         x = self.dropout(x)
 
         x = self.fc8(x)
-        x = self.selu(x) ##
+        x = self.selu(x)
         x = self.fc9(x)
         x = self.selu(x)
 
-        
-        x += res
         x = self.bn4(x)
-        
-
-        # x = self.dropout(x)
-        # x = self.fc8(x)
-        # x = self.selu(x)
-        # #x = self.bn1(x)
-        # x = self.dropout(x)
-        # x = self.fc9(x)
-        # x = self.selu(x)
-        # #x = self.bn2(x)
+        x += res
 
         x = self.fc10(x)
         x = self.softmax(x)
@@ -116,14 +99,13 @@ class Model(nn.Module):
 
 
 class Predictor:
-    def __init__(self):
+    def __init__(self, model_name = 'model.pickle'):
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        print(self.device)
         self.means = torch.zeros((40))
         self.stds = torch.zeros((40))
         self.model = Model().to(device = self.device)
         try:
-            self.model.load_state_dict(torch.load('model.pickle'))
+            self.model.load_state_dict(torch.load(model_name))
             self.means = torch.load('means.pt')
             self.stds = torch.load('stds.pt')
         except:
@@ -147,7 +129,7 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 120
+        num_epochs = 60
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -180,8 +162,8 @@ class Predictor:
         params += self.model.parameters()
 
         criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 2e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [100], gamma = 1e-3) #3, 6, 10, 20, 30, 40, 50
+        optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
         def check_accuracy(dataset):

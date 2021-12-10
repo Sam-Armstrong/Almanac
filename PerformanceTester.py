@@ -4,7 +4,15 @@ import pandas
 import numpy as np
 
 def test():
-    predictor = Predictor()
+    predictors = []
+    # predictors.append(Predictor('model.pickle'))
+    predictors.append(Predictor('model1.pickle'))
+    predictors.append(Predictor('model2.pickle'))
+    predictors.append(Predictor('model3.pickle'))
+    predictors.append(Predictor('model4.pickle'))
+    # predictors.append(Predictor('model5.pickle'))
+    
+    #predictor = Predictor()
     data = Data()
 
     df = pandas.read_csv('TestOdds2.csv')
@@ -14,32 +22,47 @@ def test():
 
     for index, row in df.iterrows():
         try:
-            date = row[0]
-            team1 = row[1]
-            team2 = row[2]
-            result = row[3]
-            odds1 = row[4]
-            odds2 = row[5]
-            odds3 = row[6]
+            t_chance_win = 0
+            t_chance_draw = 0
+            t_chance_loss = 0
 
-            prediction_data1 = [0] + (data.findTeamStats(team1, date)) + (data.findTeamStats(team2, date))
-            prediction_data2 = [1] + (data.findTeamStats(team2, date)) + (data.findTeamStats(team1, date))
+            for predictor in predictors:
+                date = row[0]
+                team1 = row[1]
+                team2 = row[2]
+                result = row[3]
+                odds1 = row[4]
+                odds2 = row[5]
+                odds3 = row[6]
 
-            prediction_data1 = np.array([prediction_data1])
-            prediction_data2 = np.array([prediction_data2])
+                prediction_data1 = [0] + (data.findTeamStats(team1, date)) + (data.findTeamStats(team2, date))
+                prediction_data2 = [1] + (data.findTeamStats(team2, date)) + (data.findTeamStats(team1, date))
 
-            prediction1 = predictor.predict(prediction_data1)
-            prediction2 = predictor.predict(prediction_data2)
+                prediction_data1 = np.array([prediction_data1])
+                prediction_data2 = np.array([prediction_data2])
 
-            chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
-            chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
-            chance_loss = round((prediction1[0][2].item() + prediction2[0][0].item()) / 2, 3)
+                prediction1 = predictor.predict(prediction_data1)
+                prediction2 = predictor.predict(prediction_data2)
+
+                chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
+                chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
+                chance_loss = round((prediction1[0][2].item() + prediction2[0][0].item()) / 2, 3)
+
+                t_chance_win += chance_win
+                t_chance_draw += chance_draw
+                t_chance_loss += chance_loss
 
             # uncertainty = abs(prediction1[0][0].item() - prediction2[0][2].item()) + abs(prediction1[0][1].item() + prediction2[0][1].item()) + abs(prediction1[0][2].item() + prediction2[0][0].item())
 
             # Doesn't seem to help
             # if uncertainty < 1:
             #     raise
+
+            chance_win = t_chance_win / len(predictors)
+            chance_draw = t_chance_draw / len(predictors)
+            chance_loss = t_chance_loss / len(predictors)
+
+            #print(chance_win, chance_draw, chance_loss)
 
             est_return1 = round(chance_win * float(odds1), 3)
             est_return2 = round(chance_draw * float(odds2), 3)
