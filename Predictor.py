@@ -45,6 +45,7 @@ class Model(nn.Module):
 
     def forward(self, x):
 
+        x = self.dropout(x)
         x = self.fc1(x)
         x = self.bn(x)
 
@@ -92,6 +93,7 @@ class Model(nn.Module):
         x = self.bn4(x)
         x += res
 
+        x = self.dropout(x)
         x = self.fc10(x)
         x = self.softmax(x)
 
@@ -129,7 +131,7 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 60
+        num_epochs = 50
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -162,7 +164,7 @@ class Predictor:
         params += self.model.parameters()
 
         criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
+        optimizer = optim.Adam(params, lr = 1e-5, weight_decay = 0) # 5e-6   1e-8 #1e-3
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set

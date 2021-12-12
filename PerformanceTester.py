@@ -5,11 +5,11 @@ import numpy as np
 
 def test():
     predictors = []
-    # predictors.append(Predictor('model.pickle'))
-    predictors.append(Predictor('model1.pickle'))
-    predictors.append(Predictor('model2.pickle'))
-    predictors.append(Predictor('model3.pickle'))
-    predictors.append(Predictor('model4.pickle'))
+    predictors.append(Predictor('model.pickle'))
+    # predictors.append(Predictor('model1.pickle'))
+    # predictors.append(Predictor('model2.pickle'))
+    # predictors.append(Predictor('model3.pickle'))
+    # predictors.append(Predictor('model4.pickle'))
     # predictors.append(Predictor('model5.pickle'))
     
     #predictor = Predictor()
@@ -19,6 +19,8 @@ def test():
     i = 0
     returns = 0
     t_est = 0
+    num_correct = 0
+    num_matches = 0
 
     for index, row in df.iterrows():
         try:
@@ -104,6 +106,7 @@ def test():
                 i += 1
                 returns += chosen_odds
                 t_est += chosen_est
+                num_correct += 1
             else:
                 i += 1
                 t_est += chosen_est
@@ -119,6 +122,8 @@ def test():
             pass
 
     print('i: ', i)
+    print('Number Correct: ', num_correct)
+    print('Accuracy: %s' % round(num_correct * 100 / i, 2))
     print('Returns: ', round(returns, 3))
     print('Expected Return: ', round(t_est / i, 3))
     print('Average Return: ', round(returns / i, 3))
