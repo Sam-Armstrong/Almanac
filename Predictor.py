@@ -1,7 +1,7 @@
 """
 Author: Sam Armstrong
 Date: 2021
-Description: Architecture and training of a deep residual PyTorch model for predicting the chance of winning for any two fighters
+Description: Architecture and training of a deep residual PyTorch model for predicting the chance of winning for any two teams
 """
 
 import torch
@@ -20,7 +20,7 @@ class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
-        self.dropout = nn.Dropout()
+        self.dropout = nn.Dropout(p = 0.2)
         self.selu = nn.SELU()
         self.gelu = nn.GELU()
         self.softmax = nn.Softmax(dim = -1)
@@ -131,7 +131,7 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 50
+        num_epochs = 100
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -163,8 +163,8 @@ class Predictor:
         params = []
         params += self.model.parameters()
 
-        criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 1e-5, weight_decay = 0) # 5e-6   1e-8 #1e-3
+        criterion = nn.CrossEntropyLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        optimizer = optim.Adam(params, lr = 2e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
@@ -188,6 +188,9 @@ class Predictor:
 
 
         for epoch in range(num_epochs):
+            if epoch == 15: # Switch the loss function after x epochs
+                criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+
             print('Epoch: ', epoch)
             train_loss = 0.0
             self.model.train()

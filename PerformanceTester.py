@@ -5,17 +5,14 @@ import numpy as np
 
 def test():
     predictors = []
-    predictors.append(Predictor('model.pickle'))
-    # predictors.append(Predictor('model1.pickle'))
-    # predictors.append(Predictor('model2.pickle'))
-    # predictors.append(Predictor('model3.pickle'))
-    # predictors.append(Predictor('model4.pickle'))
-    # predictors.append(Predictor('model5.pickle'))
+    #predictors.append(Predictor('model.pickle'))
+    predictors.append(Predictor('BEST1.pickle'))
+    #predictors.append(Predictor('BEST2.pickle'))
     
     #predictor = Predictor()
     data = Data()
 
-    df = pandas.read_csv('TestOdds2.csv')
+    df = pandas.read_csv('TestOdds1.csv')
     i = 0
     returns = 0
     t_est = 0
