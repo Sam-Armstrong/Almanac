@@ -1,4 +1,4 @@
-from Predictor import Predictor
+from NewPredictor import Predictor
 from Data import Data
 import pandas
 import numpy as np
@@ -6,7 +6,7 @@ import numpy as np
 def test():
     predictors = []
     #predictors.append(Predictor('model.pickle'))
-    predictors.append(Predictor('BEST1.pickle'))
+    predictors.append(Predictor('model.pickle'))
     #predictors.append(Predictor('BEST2.pickle'))
     
     #predictor = Predictor()
