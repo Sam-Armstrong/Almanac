@@ -11,10 +11,15 @@ import time
 from Data import Data
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 def MAPELoss(output, target):
     loss = torch.mean(torch.abs((target - output) / target))
     return loss
+
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
 
 class Model(nn.Module):
     def __init__(self) -> None:
@@ -36,6 +41,17 @@ class Model(nn.Module):
         self.fc9 = nn.Linear(240, 240)
         self.fc10 = nn.Linear(240, 3)
 
+        self.fc1.weight.data.normal_(0, math.sqrt(1 / 29))
+        self.fc2.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc3.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc4.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc5.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc6.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc7.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc8.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc9.weight.data.normal_(0, math.sqrt(1 / 240))
+        self.fc10.weight.data.normal_(0, math.sqrt(1 / 240))
+
         self.bn1 = nn.BatchNorm1d(240)
         self.bn2 = nn.BatchNorm1d(240)
         self.bn3 = nn.BatchNorm1d(240)
@@ -47,7 +63,7 @@ class Model(nn.Module):
 
         x = self.dropout(x)
         x = self.fc1(x)
-        x = self.bn(x)
+        #x = self.bn(x)
 
         res = x.clone()
         x = self.dropout(x)
@@ -57,7 +73,7 @@ class Model(nn.Module):
         x = self.fc3(x)
         x = self.selu(x)
 
-        x = self.bn1(x)
+        #x = self.bn1(x)
         x += res
 
         res = x.clone()
@@ -68,7 +84,7 @@ class Model(nn.Module):
         x = self.fc5(x)
         x = self.selu(x)
         
-        x = self.bn2(x)
+        #x = self.bn2(x)
         x += res
 
         res = x.clone()
@@ -79,7 +95,7 @@ class Model(nn.Module):
         x = self.fc7(x)
         x = self.selu(x)
 
-        x = self.bn3(x)
+        #x = self.bn3(x)
         x += res
         
         res = x.clone()
@@ -90,7 +106,7 @@ class Model(nn.Module):
         x = self.fc9(x)
         x = self.selu(x)
 
-        x = self.bn4(x)
+        #x = self.bn4(x)
         x += res
 
         x = self.dropout(x)
@@ -131,7 +147,8 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 100
+        num_epochs = 20
+        warmup_steps = 5
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -163,8 +180,8 @@ class Predictor:
         params = []
         params += self.model.parameters()
 
-        criterion = nn.CrossEntropyLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 2e-6, weight_decay = 0) # 5e-6   1e-8 #1e-3
+        criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        optimizer = optim.Adam(params, lr = 2e-5, weight_decay = 0) # 5e-6   1e-8 #1e-3
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
@@ -187,9 +204,16 @@ class Predictor:
             return (num_correct * 100 / num_samples).item()
 
 
-        for epoch in range(num_epochs):
-            if epoch == 15: # Switch the loss function after x epochs
-                criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+        for epoch in range(1, num_epochs + 1):
+            # if epoch == 15: # Switch the loss function after x epochs
+            #     criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+
+
+            # Change the learning rate according to warmup step formula
+            # for g in optimizer.param_groups:
+            #     g['lr'] = 0.01 * (1 / math.sqrt(240)) * min((1 / math.sqrt(epoch)), epoch * (1 / math.sqrt(warmup_steps ** 3)))
+
+            # print('lr: ', get_lr(optimizer))
 
             print('Epoch: ', epoch)
             train_loss = 0.0
@@ -227,7 +251,7 @@ class Predictor:
             # print(valid_accuracy, '% Validation Accuracy')
             print('Validation Loss: ', valid_loss)
 
-            plot_data[epoch] = valid_loss
+            #plot_data[epoch] = valid_loss
 
         print('Finished in %s seconds' % round(time.time() - start_time, 1))
         plt.plot(plot_data)

@@ -12,7 +12,7 @@ def test():
     #predictor = Predictor()
     data = Data()
 
-    df = pandas.read_csv('TestOdds1.csv')
+    df = pandas.read_csv('TestOdds2.csv')
     i = 0
     returns = 0
     t_est = 0

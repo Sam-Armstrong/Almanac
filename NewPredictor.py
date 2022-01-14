@@ -11,6 +11,7 @@ import time
 from Data import Data
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 from SelfAttention import SelfAttention
 
@@ -20,87 +21,89 @@ def MAPELoss(output, target):
 
 class Model(nn.Module):
     def __init__(self) -> None:
-        super().__init__()
+        super(Model, self).__init__()
 
         self.dropout = nn.Dropout(p = 0.2)
-        self.selu = nn.SELU()
         self.gelu = nn.GELU()
         self.softmax = nn.Softmax(dim = -1)
         
-        self.fc1 = nn.Linear(29, 240) # , bias = False ??
-        self.fc2 = nn.Linear(240, 240)
-        self.fc3 = nn.Linear(240, 240)
-        self.fc4 = nn.Linear(240, 240)
-        self.fc5 = nn.Linear(240, 240)
-        self.fc6 = nn.Linear(240, 240)
-        self.fc7 = nn.Linear(240, 240)
-        self.fc8 = nn.Linear(240, 240)
-        self.fc9 = nn.Linear(240, 240)
-        self.fc10 = nn.Linear(240, 3)
+        self.fc1 = nn.Linear(29, 580) # , bias = False ??
+        self.fc2 = nn.Linear(580, 1160)
+        self.fc3 = nn.Linear(1160, 580)
+        self.fc4 = nn.Linear(580, 1160)
+        self.fc5 = nn.Linear(1160, 580)
+        self.fc6 = nn.Linear(580, 1160)
+        self.fc7 = nn.Linear(1160, 580)
+        self.fc8 = nn.Linear(580, 1160)
+        self.fc9 = nn.Linear(1160, 580)
+        self.fc10 = nn.Linear(580, 3)
 
-        self.ln = nn.LayerNorm((240))
-        self.ln1 = nn.LayerNorm((240))
-        self.ln2 = nn.LayerNorm((240))
-        self.ln3 = nn.LayerNorm((240))
-        self.ln4 = nn.LayerNorm((240))
-        self.ln5 = nn.LayerNorm((240))
-        self.ln6 = nn.LayerNorm((240))
-        self.ln7 = nn.LayerNorm((240))
-        self.ln8 = nn.LayerNorm((240))
+        # Kaiming (He) weight initialization for fully connected layers
+        self.fc1.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc1.bias.data.zero_()
+        self.fc2.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc2.bias.data.zero_()
+        self.fc3.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc3.bias.data.zero_()
+        self.fc4.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc4.bias.data.zero_()
+        self.fc5.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc5.bias.data.zero_()
+        self.fc6.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc6.bias.data.zero_()
+        self.fc7.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc7.bias.data.zero_()
+        self.fc8.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc8.bias.data.zero_()
+        self.fc9.weight.data.normal_(0, 2 / math.sqrt(580))
+        self.fc9.bias.data.zero_()
+        self.fc10.weight.data.normal_(0, 2 / math.sqrt(3))
+        self.fc10.bias.data.zero_()
 
-        self.attention1 = SelfAttention(encode_size = 240)
-        self.attention2 = SelfAttention(encode_size = 240)
-        self.attention3 = SelfAttention(encode_size = 240)
-        self.attention4 = SelfAttention(encode_size = 240)
+        self.ln = nn.LayerNorm((580))
+        self.ln1 = nn.LayerNorm((580))
+        self.ln2 = nn.LayerNorm((580))
+        self.ln3 = nn.LayerNorm((580))
+        self.ln4 = nn.LayerNorm((580))
+        self.ln5 = nn.LayerNorm((580))
+        self.ln6 = nn.LayerNorm((580))
+        self.ln7 = nn.LayerNorm((580))
+        self.ln8 = nn.LayerNorm((580))
 
     def forward(self, x):
         x = self.fc1(x)
         x = self.ln(x)
 
-        res = x.clone()
-        x = self.attention1(x)
-        x += res
-        x = self.ln1(x)
-        res = x.clone()
+        #res = x.clone()
         x = self.fc2(x)
-        x += res
-        x = self.ln2(x)
-
         x = self.gelu(x)
-        x = self.dropout(x)
-
-        res = x.clone()
-        x = self.attention2(x)
-        x += res
-        x = self.ln3(x)
-        res = x.clone()
         x = self.fc3(x)
-        x += res
-        x = self.ln4(x)
+        #x += res
+        x = self.ln2(x)
+        #x = self.dropout(x)
 
-        x = self.gelu(x)
-        x = self.dropout(x)
-
-        res = x.clone()
-        x = self.attention3(x)
-        x += res
-        x = self.ln5(x)
-        res = x.clone()
+        #res = x.clone()
         x = self.fc4(x)
-        x += res
-        x = self.ln6(x)
-
         x = self.gelu(x)
-        x = self.dropout(x)
-
-        res = x.clone()
-        x = self.attention4(x)
-        x += res
-        x = self.ln7(x)
-        res = x.clone()
         x = self.fc5(x)
-        x += res
-        x = self.ln8(x)
+        #x += res
+        x = self.ln3(x)
+        #x = self.dropout(x)
+
+        #res = x.clone()
+        x = self.fc6(x)
+        x = self.gelu(x)
+        x = self.fc7(x)
+        #x += res
+        x = self.ln4(x)
+        #x = self.dropout(x)
+
+        #res = x.clone()
+        x = self.fc8(x)
+        x = self.gelu(x)
+        x = self.fc9(x)
+        #x += res
+        x = self.ln5(x)
 
         x = self.fc10(x)
         x = self.softmax(x)
@@ -139,7 +142,10 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 100
+        num_epochs = 15
+        lr = 5e-6 # Learning rate
+        wd = 0 # Weight decay
+        batch_size = 500
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -150,8 +156,6 @@ class Predictor:
 
         X = torch.tensor(X).float()
         y = torch.tensor(y).float()
-
-        print(X.shape)
 
         self.means = torch.mean(X, dim = 0)
         self.stds = torch.std(X, dim = 0)
@@ -165,15 +169,15 @@ class Predictor:
 
         train_set, val_set = torch.utils.data.random_split(train_data, [45000, X.shape[0] - 45000]) # Splits the training data into a train set and a validation set
 
-        train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = 500, shuffle = True, num_workers = 4)
-        val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = 5000, shuffle = False, num_workers = 4)
+        train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 4)
+        val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = batch_size, shuffle = False, num_workers = 4)
 
         params = []
         params += self.model.parameters()
 
-        criterion = nn.CrossEntropyLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam(params, lr = 5e-6, weight_decay = 1e-9) # 5e-6   1e-8 #1e-3
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
+        criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        optimizer = optim.Adam(params, lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [30], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
         def check_accuracy(dataset):
@@ -196,8 +200,10 @@ class Predictor:
 
 
         for epoch in range(num_epochs):
-            # if epoch == 5: # Switch the loss function after x epochs #15
-            #     criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+            if epoch == 20: # Switch the loss function after x epochs #15
+                criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+
+            epoch_start = time.time()
 
             print('Epoch: ', epoch)
             train_loss = 0.0
@@ -211,7 +217,10 @@ class Predictor:
                 loss = criterion(scores.float(), labels.float()).float() # Calculates the loss of the forward pass using the loss function
                 train_loss += loss
 
-                self.model.zero_grad() ###
+                # print(scores.float())
+                # print(labels.float())
+
+                #self.model.zero_grad() ###
                 optimizer.zero_grad() # Resets the optimizer gradients to zero for each batch
                 loss.backward() # Backpropagates the network using the loss to calculate the local gradients
 
@@ -236,6 +245,7 @@ class Predictor:
             print('Validation Loss: ', valid_loss)
 
             plot_data[epoch] = valid_loss
+            print('Epoch time: %s seconds' % round(time.time() - epoch_start, 2))
 
         print('Finished in %s seconds' % round(time.time() - start_time, 1))
         plt.plot(plot_data)
