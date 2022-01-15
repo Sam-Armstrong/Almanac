@@ -106,6 +106,8 @@ class Model(nn.Module):
         x = self.ln5(x)
 
         x = self.fc10(x)
+
+        x = x / math.sqrt(580) # Reduce vanishing gradient problem
         x = self.softmax(x)
 
         return x
@@ -142,8 +144,8 @@ class Predictor:
 
         self.model = Model().to(device = self.device)
 
-        num_epochs = 15
-        lr = 5e-6 # Learning rate
+        num_epochs = 30
+        lr = 8e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 # Weight decay
         batch_size = 500
 
@@ -175,9 +177,9 @@ class Predictor:
         params = []
         params += self.model.parameters()
 
-        criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss() #nn.KLDivLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
         optimizer = optim.Adam(params, lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [30], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
         def check_accuracy(dataset):
@@ -200,8 +202,13 @@ class Predictor:
 
 
         for epoch in range(num_epochs):
-            if epoch == 20: # Switch the loss function after x epochs #15
-                criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+            # if epoch == 20: # Switch the loss function after x epochs #15
+            #     criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
+
+            # Learning rate warmup
+            if epoch < 20:
+                for g in optimizer.param_groups:
+                    g['lr'] = lr * ((epoch + 1) / 20)
 
             epoch_start = time.time()
 
@@ -214,6 +221,7 @@ class Predictor:
                 labels = labels.to(device = self.device)
 
                 scores = self.model(data) # Runs a forward pass of the model for all the data
+                #print(scores)
                 loss = criterion(scores.float(), labels.float()).float() # Calculates the loss of the forward pass using the loss function
                 train_loss += loss
 
