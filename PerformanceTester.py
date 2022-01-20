@@ -5,14 +5,14 @@ import numpy as np
 
 def test():
     predictors = []
-    #predictors.append(Predictor('model.pickle'))
     predictors.append(Predictor('model.pickle'))
-    #predictors.append(Predictor('BEST2.pickle'))
+    #predictors.append(Predictor('best_model.pickle'))
+    #predictors.append(Predictor('BSF.pickle'))
     
     #predictor = Predictor()
     data = Data()
 
-    df = pandas.read_csv('TestOdds2.csv')
+    df = pandas.read_csv('TestOdds1.csv')
     i = 0
     returns = 0
     t_est = 0
@@ -67,15 +67,17 @@ def test():
             est_return2 = round(chance_draw * float(odds2), 3)
             est_return3 = round(chance_loss * float(odds3), 3)
 
-            if est_return1 > 1 and est_return1 > est_return2 and est_return1 > est_return3:
+            min_return = 1
+
+            if est_return1 > min_return and est_return1 > est_return2 and est_return1 > est_return3:
                 chosen_bet = 0
                 chosen_odds = odds1
                 chosen_est = est_return1
-            elif est_return2 > 1 and est_return2 >= est_return1 and est_return2 > est_return3:
+            elif est_return2 > min_return and est_return2 >= est_return1 and est_return2 > est_return3:
                 chosen_bet = 1
                 chosen_odds = odds2
                 chosen_est = est_return2
-            elif est_return3 > 1 and est_return3 >= est_return1 and est_return3 >= est_return2:
+            elif est_return3 > min_return and est_return3 >= est_return1 and est_return3 >= est_return2:
                 chosen_bet = 2
                 chosen_odds = odds3
                 chosen_est = est_return3

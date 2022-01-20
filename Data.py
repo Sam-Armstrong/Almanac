@@ -41,6 +41,53 @@ class Data:
         except:
             self.training_data = None
 
+        try:
+            self.pretrain_data = pandas.read_csv('PretrainData.csv')
+        except:
+            self.pretrain_data = None
+
+
+    def findMatchStats(self, team_name, date):
+        n_include = 7 # The number of past matches to calculate the team average from
+
+        days_since_match = calculateDaysSince(date)
+        team_data = self.match_stats[self.match_stats['Team 1'].str.contains(team_name)]
+        match_data = team_data[team_data['Date'].str.contains(date)]
+        stats = []
+
+        for index, row in match_data.iterrows():
+            if row[1] == date:
+                goals = row[3]
+                goals_against = row[4]
+                pos = row[5]
+                shots_on_t = row[6]
+                att_shots = row[7]
+                shot_acc = row[8]
+                sot_against = row[9]
+                att_shots_against = row[10]
+                saves = row[11]
+                save_acc = row[12]
+                fouls = row[13]
+                fouls_against = row[14]
+                corners = row[15]
+                corners_against = row[16]
+
+        stats.append(goals)
+        stats.append(goals_against)
+        stats.append(pos)
+        stats.append(shots_on_t)
+        stats.append(att_shots)
+        stats.append(shot_acc)
+        stats.append(sot_against)
+        stats.append(att_shots_against)
+        stats.append(saves)
+        stats.append(save_acc)
+        stats.append(fouls)
+        stats.append(fouls_against)
+        stats.append(corners)
+        stats.append(corners_against)
+
+        return stats
 
     def findTeamStats(self, team_name, date):
         n_include = 7 # The number of past matches to calculate the team average from
@@ -344,6 +391,51 @@ class Data:
         stats_dataframe.to_csv('MatchStats.csv')
 
 
+    def createPretrainData(self):
+        all_data = []
+
+        training_data = pandas.DataFrame(columns = ['Home/Away', 'goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
+                                                    'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1', 'goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
+                                                    'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
+                                                    'corners_against2', 'tgoals1', 'tgoals_against1', 'tpos1', 'tshots_on_t1', 'tatt_shots1', 'tshot_acc1', 'tsot_against1', 'tatt_shots_against1', 'tsaves1', 
+                                                    'tsave_acc1', 'tfouls1', 'tfouls_against1', 'tcorners1', 'tcorners_against1', 'tgoals2', 'tgoals_against2', 'tpos2', 'tshots_on_t2', 
+                                                    'tatt_shots2', 'tshot_acc2', 'tsot_against2', 'tatt_shots_against2', 'tsaves2', 'tsave_acc2', 'tfouls2', 'tfouls_against2', 'tcorners2', 
+                                                    'tcorners_against2'])
+
+        for index, row in self.match_results.iterrows():
+            print(index, '/', len(self.match_results))
+            try:
+                date = row[1]
+                team1 = row[2].rstrip()
+                team2 = row[3].rstrip()
+                result = row[4]
+
+                target1 = self.findMatchStats(team1, date)
+                target2 = self.findMatchStats(team2, date)
+                team1_useful_data = self.findTeamStats(team1, date)
+                team2_useful_data = self.findTeamStats(team2, date)
+
+                # days_since_match = calculateDaysSince(date)
+
+                # if days_since_match < 16:
+                #     raise
+
+                full_list1 = [0] + team1_useful_data + team2_useful_data + target1 + target2 # Size: (14x4) + 1 = 57
+                full_list2 = [1] + team2_useful_data + team1_useful_data + target2 + target1
+
+                all_data.append(full_list1)
+                all_data.append(full_list2)
+
+            except Exception as e:
+                print(e)
+                pass # Some matches do not have the correct past data to allow them to be included - hence they are passed over with this except
+            
+        for data in all_data:
+            df_len = len(training_data)
+            training_data.loc[df_len] = data
+
+        training_data.to_csv('PretrainData.csv')
+
     def createTrainingData(self):
         all_data = []
 
@@ -398,5 +490,6 @@ if __name__ == '__main__':
     start_time = time.time()
     data = Data()
     #data.getData()
-    data.createTrainingData()
+    #data.createTrainingData()
+    data.createPretrainData()
     print('Finished in %s seconds' % round(time.time() - start_time, 2))

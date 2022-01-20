@@ -12,106 +12,100 @@ from Data import Data
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import pandas
+from Model import Model
+from PreTraining import PreTrain
 
-from SelfAttention import SelfAttention
+# Train using all features of the next match as the labels?
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def MAPELoss(output, target):
     loss = torch.mean(torch.abs((target - output) / target))
     return loss
 
-class Model(nn.Module):
-    def __init__(self) -> None:
-        super(Model, self).__init__()
+def test(predictor, test_odds = 'TestOdds1.csv'):        
+    data = Data()
 
-        self.dropout = nn.Dropout(p = 0.2)
-        self.gelu = nn.GELU()
-        self.softmax = nn.Softmax(dim = -1)
-        
-        self.fc1 = nn.Linear(29, 580) # , bias = False ??
-        self.fc2 = nn.Linear(580, 1160)
-        self.fc3 = nn.Linear(1160, 580)
-        self.fc4 = nn.Linear(580, 1160)
-        self.fc5 = nn.Linear(1160, 580)
-        self.fc6 = nn.Linear(580, 1160)
-        self.fc7 = nn.Linear(1160, 580)
-        self.fc8 = nn.Linear(580, 1160)
-        self.fc9 = nn.Linear(1160, 580)
-        self.fc10 = nn.Linear(580, 3)
+    df = pandas.read_csv(test_odds)
+    i = 0
+    returns = 0
+    t_est = 0
+    num_correct = 0
+    num_matches = 0
 
-        # Kaiming (He) weight initialization for fully connected layers
-        self.fc1.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc1.bias.data.zero_()
-        self.fc2.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc2.bias.data.zero_()
-        self.fc3.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc3.bias.data.zero_()
-        self.fc4.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc4.bias.data.zero_()
-        self.fc5.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc5.bias.data.zero_()
-        self.fc6.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc6.bias.data.zero_()
-        self.fc7.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc7.bias.data.zero_()
-        self.fc8.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc8.bias.data.zero_()
-        self.fc9.weight.data.normal_(0, 2 / math.sqrt(580))
-        self.fc9.bias.data.zero_()
-        self.fc10.weight.data.normal_(0, 2 / math.sqrt(3))
-        self.fc10.bias.data.zero_()
+    for index, row in df.iterrows():
+        try:
+            date = row[0]
+            team1 = row[1]
+            team2 = row[2]
+            result = row[3]
+            odds1 = row[4]
+            odds2 = row[5]
+            odds3 = row[6]
 
-        self.ln = nn.LayerNorm((580))
-        self.ln1 = nn.LayerNorm((580))
-        self.ln2 = nn.LayerNorm((580))
-        self.ln3 = nn.LayerNorm((580))
-        self.ln4 = nn.LayerNorm((580))
-        self.ln5 = nn.LayerNorm((580))
-        self.ln6 = nn.LayerNorm((580))
-        self.ln7 = nn.LayerNorm((580))
-        self.ln8 = nn.LayerNorm((580))
+            prediction_data1 = [0] + (data.findTeamStats(team1, date)) + (data.findTeamStats(team2, date))
+            prediction_data2 = [1] + (data.findTeamStats(team2, date)) + (data.findTeamStats(team1, date))
+            prediction_data1 = np.array([prediction_data1])
+            prediction_data2 = np.array([prediction_data2])
+            prediction1 = predictor.predict(prediction_data1)
+            prediction2 = predictor.predict(prediction_data2)
 
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.ln(x)
+            chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
+            chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
+            chance_loss = round((prediction1[0][2].item() + prediction2[0][0].item()) / 2, 3)
 
-        #res = x.clone()
-        x = self.fc2(x)
-        x = self.gelu(x)
-        x = self.fc3(x)
-        #x += res
-        x = self.ln2(x)
-        #x = self.dropout(x)
+            est_return1 = round(chance_win * float(odds1), 3)
+            est_return2 = round(chance_draw * float(odds2), 3)
+            est_return3 = round(chance_loss * float(odds3), 3)
 
-        #res = x.clone()
-        x = self.fc4(x)
-        x = self.gelu(x)
-        x = self.fc5(x)
-        #x += res
-        x = self.ln3(x)
-        #x = self.dropout(x)
+            min_return = 1
 
-        #res = x.clone()
-        x = self.fc6(x)
-        x = self.gelu(x)
-        x = self.fc7(x)
-        #x += res
-        x = self.ln4(x)
-        #x = self.dropout(x)
+            if est_return1 > min_return and est_return1 > est_return2 and est_return1 > est_return3:
+                chosen_bet = 0
+                chosen_odds = odds1
+                chosen_est = est_return1
+            elif est_return2 > min_return and est_return2 >= est_return1 and est_return2 > est_return3:
+                chosen_bet = 1
+                chosen_odds = odds2
+                chosen_est = est_return2
+            elif est_return3 > min_return and est_return3 >= est_return1 and est_return3 >= est_return2:
+                chosen_bet = 2
+                chosen_odds = odds3
+                chosen_est = est_return3
+            else:
+                chosen_bet = -1
+                chosen_odds = -1
+                chosen_est = 0
 
-        #res = x.clone()
-        x = self.fc8(x)
-        x = self.gelu(x)
-        x = self.fc9(x)
-        #x += res
-        x = self.ln5(x)
+            # if chance_win > chance_draw and chance_win > chance_loss:
+            #     chosen_bet = 0
+            #     chosen_odds = odds1
+            # elif chance_draw >= chance_win and chance_draw > chance_loss:
+            #     chosen_bet = 1
+            #     chosen_odds = odds2
+            # elif chance_loss >= chance_draw and chance_loss >= chance_win:
+            #     chosen_bet = 2
+            #     chosen_odds = odds3
+            # else:
+            #     chosen_bet = -1
+            #     chosen_odds = -1
 
-        x = self.fc10(x)
+            if chosen_bet == -1:
+                pass
+            elif chosen_bet == int(result):
+                i += 1
+                returns += chosen_odds
+                t_est += chosen_est
+                num_correct += 1
+            else:
+                i += 1
+                t_est += chosen_est
 
-        x = x / math.sqrt(580) # Reduce vanishing gradient problem
-        x = self.softmax(x)
+        except Exception as e:
+            pass
 
-        return x
-
+    return returns, i
 
 class Predictor:
     def __init__(self, model_name = 'model.pickle'):
@@ -134,23 +128,31 @@ class Predictor:
     def predict(self, prediction_data): # prediction_data2 ??
         self.model.eval()
         prediction_data = torch.from_numpy(prediction_data).float().to(self.device)
-        prediction_data -= self.means
-        prediction_data /= self.stds
+        prediction_data -= self.means.to(device)
+        prediction_data /= self.stds.to(device)
         prediction = self.model(prediction_data)
         return prediction
 
+    def pretrain(self, training_data):
+        p = PreTrain(self.model, self.means, self.stds)
+        p.train(training_data)
+
     # Method for training the model using a given set of data
     def train(self, training_data):
+        best_returns = 0
+        print(len(training_data))
 
-        self.model = Model().to(device = self.device)
+        self.model = Model().to(self.device)
 
-        num_epochs = 30
-        lr = 8e-7 #3e-6 #8e-7 # Learning rate
-        wd = 0 # Weight decay
+        num_epochs = 40
+        lr = 5e-7 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 500
+        warmup_steps = 20
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
+        returns_data = np.empty((num_epochs, 2), dtype = float)
 
         # The data is split into training data and labels later on
         X = training_data.iloc[:, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]].values
@@ -179,7 +181,7 @@ class Predictor:
 
         criterion = nn.CrossEntropyLoss() #nn.KLDivLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
         optimizer = optim.Adam(params, lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-2) #3, 6, 10, 20, 30, 40, 50
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-1) #3, 6, 10, 20, 30, 40, 50
 
         # Checks the performance of the model on the test set
         def check_accuracy(dataset):
@@ -202,13 +204,13 @@ class Predictor:
 
 
         for epoch in range(num_epochs):
-            # if epoch == 20: # Switch the loss function after x epochs #15
+            # if epoch == 10: # Switch the loss function after x epochs #15
             #     criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss()
 
             # Learning rate warmup
-            if epoch < 20:
+            if epoch < warmup_steps:
                 for g in optimizer.param_groups:
-                    g['lr'] = lr * ((epoch + 1) / 20)
+                    g['lr'] = lr * ((epoch + 1) / warmup_steps)
 
             epoch_start = time.time()
 
@@ -243,6 +245,7 @@ class Predictor:
                     labels = labels.to(device = self.device)
                     
                     target = self.model(data)
+                    print(target[0])
                     loss = criterion(target, labels).float()
                     valid_loss = loss.item() * data.size(0)
 
@@ -252,12 +255,35 @@ class Predictor:
             # print(valid_accuracy, '% Validation Accuracy')
             print('Validation Loss: ', valid_loss)
 
+            returns, num_samples = test(self, 'TestOdds2.csv')
+            returns = returns / num_samples
+            print('TestOdds2 returns: ', returns)
+            print('Num Predictions: ', num_samples)
+            returns_data[epoch, 0] = returns
+
+            if returns > best_returns and returns > 1:
+                torch.save(self.model.state_dict(), 'best_model.pickle')
+                best_returns = returns
+
+            #if returns > 1:
+            returns, num_samples = test(self, 'TestOdds1.csv')
+            returns = returns / num_samples
+            returns_data[epoch, 1] = returns
+            print('TestOdds1 returns: ', returns)
+            print('Num Predictions: ', num_samples)
+
             plot_data[epoch] = valid_loss
             print('Epoch time: %s seconds' % round(time.time() - epoch_start, 2))
+            print()
 
         print('Finished in %s seconds' % round(time.time() - start_time, 1))
         plt.plot(plot_data)
         plt.ylabel('Validation Loss')
+        plt.xlabel('Epoch')
+        plt.show()
+
+        plt.plot(returns_data)
+        plt.ylabel('TestOdds Accuracy')
         plt.xlabel('Epoch')
         plt.show()
 
@@ -266,6 +292,7 @@ class Predictor:
         torch.save(self.means, 'means.pt')
         torch.save(self.stds, 'stds.pt')
         print('Saved means and standard deviations')
+        print('Best returns: %s' % best_returns)
 
 
 if __name__ == '__main__':
