@@ -8,7 +8,7 @@ class Model(nn.Module):
 
         self.dropout = nn.Dropout(p = 0.1)
         self.gelu = nn.GELU()
-        self.softmax = nn.Softmax(dim = -1)
+        self.softmax = lambda x: x
         
         self.fc1 = nn.Linear(29, 580, bias = False) # , bias = False ??
         self.fc2 = nn.Linear(580, 1160, bias = True)
@@ -18,7 +18,7 @@ class Model(nn.Module):
         self.fc6 = nn.Linear(580, 1160, bias = True)
         self.fc7 = nn.Linear(1160, 580, bias = True)
         self.fc8 = nn.Linear(580, 1160, bias = True)
-        self.fc9 = nn.Linear(1160, 580, bias = True)
+        self.fc9 = nn.Linear(1160, 580, bias = False)
         self.fc10 = nn.Linear(580, 28, bias = False)
 
         # Kaiming (He) weight initialization for fully connected layers
@@ -36,14 +36,14 @@ class Model(nn.Module):
         # self.div_param = torch.nn.Parameter(torch.tensor(200.0))
 
         # self.fc1.bias.data.zero_()
-        self.fc2.bias.data.zero_()
-        self.fc3.bias.data.zero_()
-        self.fc4.bias.data.zero_()
-        self.fc5.bias.data.zero_()
-        self.fc6.bias.data.zero_()
-        self.fc7.bias.data.zero_()
-        self.fc8.bias.data.zero_()
-        self.fc9.bias.data.zero_()
+        # self.fc2.bias.data.zero_()
+        # self.fc3.bias.data.zero_()
+        # self.fc4.bias.data.zero_()
+        # self.fc5.bias.data.zero_()
+        # self.fc6.bias.data.zero_()
+        # self.fc7.bias.data.zero_()
+        # self.fc8.bias.data.zero_()
+        # self.fc9.bias.data.zero_()
         # self.fc10.bias.data.zero_()
 
         self.ln = nn.LayerNorm((580))
@@ -93,4 +93,5 @@ class Model(nn.Module):
         x = self.ln5(x)
 
         x = self.fc10(x)
+        x = self.softmax(x)
         return x

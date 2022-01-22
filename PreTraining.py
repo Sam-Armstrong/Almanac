@@ -22,7 +22,7 @@ class PreTrain():
 
         self.model = Model().to(self.device)
 
-        num_epochs = 100
+        num_epochs = 200
         lr = 5e-6 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 500

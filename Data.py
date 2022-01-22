@@ -119,8 +119,8 @@ class Data:
             #print(match_date) ##
 
             days_since = calculateDaysSince(match_date)
-            # print(days_since)
-            # print(days_since_match)
+            # print('days_since:', days_since)
+            # print('days_since_match:', days_since_match)
 
             if days_since > days_since_match and i < n_include:
                 goals += row[3]
@@ -140,7 +140,10 @@ class Data:
                 i += 1
 
         if i != 7:
-            raise Exception()
+            raise Exception('Not enough data available for this team')
+        # else:
+        #     print(team_name)
+        #     print('Enough data!')
 
         average_data.append(goals)
         average_data.append(goals_against)

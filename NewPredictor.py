@@ -13,8 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import pandas
-from Model import Model
+from PretrainingModel import Model
 from PreTraining import PreTrain
+from FinetuneModel import FinetunedModel
 
 # Train using all features of the next match as the labels?
 
@@ -108,21 +109,24 @@ def test(predictor, test_odds = 'TestOdds1.csv'):
     return returns, i
 
 class Predictor:
-    def __init__(self, model_name = 'model.pickle'):
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.means = torch.zeros((40))
-        self.stds = torch.zeros((40))
-        self.model = Model().to(device = self.device)
+    def __init__(self, model_name = 'model.pickle', eval = False):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.means = torch.zeros((29)).to(self.device)
+        self.stds = torch.zeros((29)).to(self.device)
+        
+        # Pretrained network
+        self.model = FinetunedModel().to(self.device)
+        
         try:
-            self.model.load_state_dict(torch.load(model_name))
+            #self.model.load_state_dict(torch.load(model_name))
             self.means = torch.load('means.pt')
             self.stds = torch.load('stds.pt')
         except:
             print('No previously trained model found')
             pass
 
-        self.means = self.means.to(self.device)
-        self.stds = self.stds.to(self.device)
+        if eval == True:
+            self.model.eval()
 
     # Method for making predictions using the model
     def predict(self, prediction_data): # prediction_data2 ??
@@ -130,7 +134,10 @@ class Predictor:
         prediction_data = torch.from_numpy(prediction_data).float().to(self.device)
         prediction_data -= self.means.to(device)
         prediction_data /= self.stds.to(device)
+        # print(prediction_data)
+        # print(prediction_data.shape)
         prediction = self.model(prediction_data)
+        #print(prediction)
         return prediction
 
     def pretrain(self, training_data):
@@ -139,16 +146,18 @@ class Predictor:
 
     # Method for training the model using a given set of data
     def train(self, training_data):
+        self.model.train()
+
         best_returns = 0
         print(len(training_data))
 
-        self.model = Model().to(self.device)
+        #self.model = Model().to(self.device)
 
-        num_epochs = 40
-        lr = 5e-7 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        num_epochs = 5
+        lr = 5e-6 #5e-6 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 500
-        warmup_steps = 20
+        warmup_steps = 10
 
         start_time = time.time()
         plot_data = np.empty((num_epochs), dtype = float)
@@ -179,7 +188,7 @@ class Predictor:
         params = []
         params += self.model.parameters()
 
-        criterion = nn.CrossEntropyLoss() #nn.KLDivLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
+        criterion = nn.MSELoss() #nn.KLDivLoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
         optimizer = optim.Adam(params, lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-1) #3, 6, 10, 20, 30, 40, 50
 
