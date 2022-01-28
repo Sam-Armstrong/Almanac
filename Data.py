@@ -48,7 +48,7 @@ class Data:
 
 
     def findMatchStats(self, team_name, date):
-        n_include = 7 # The number of past matches to calculate the team average from
+        #n_include = 7 # The number of past matches to calculate the team average from
 
         days_since_match = calculateDaysSince(date)
         team_data = self.match_stats[self.match_stats['Team 1'].str.contains(team_name)]
@@ -90,7 +90,7 @@ class Data:
         return stats
 
     def findTeamStats(self, team_name, date):
-        n_include = 7 # The number of past matches to calculate the team average from
+        n_include = 5 # The number of past matches to calculate the team average from
 
         days_since_match = calculateDaysSince(date)
         team_data = self.match_stats[self.match_stats['Team 1'].str.contains(team_name)]
@@ -139,7 +139,7 @@ class Data:
                 corners_against += row[16]
                 i += 1
 
-        if i != 7:
+        if i != n_include:
             raise Exception('Not enough data available for this team')
         # else:
         #     print(team_name)
@@ -703,6 +703,103 @@ class Data:
 
         training_data.to_csv('TrainingData.csv')
 
+    
+    
+    def createTimeSeriesData(self):
+        training_data = pandas.DataFrame(columns = ['Home', 'Away', 'goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
+                                                    'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1', 'goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
+                                                    'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
+                                                    'corners_against2', 'avg_goals2', 'avg_goals_against2', 'avg_pos2', 'avg_shots_on_t2', 'avg_att_shots2', 'avg_shot_acc2', 
+                                                    'avg_sot_against2', 'avg_att_shots_against2', 'avg_saves2', 'avg_save_acc2', 'avg_fouls2', 'avg_fouls_against2', 'avg_corners2', 
+                                                    'avg_corners_against2'])
+
+        for index, row in self.match_results.iterrows():
+            print(index, '/', len(self.match_results))
+            try:
+                date = row[1]
+                days_since_match = calculateDaysSince(date)
+                team1 = row[2].rstrip()
+                team2 = row[3].rstrip()
+                result = row[4]
+                teams = [team1, team2]
+
+                for i in range(2):
+                    # team1_stats = self.match_stats[self.match_stats['Team 1'].str.contains(team1)]
+                    # team1_stats = team1_stats[team1_stats['Date'].str.contains(date)]
+                    # team2_stats = self.match_stats[self.match_stats['Team 1'].str.contains(team2)]
+                    # team2_stats = team2_stats[team2_stats['Date'].str.contains(date)]
+
+                    if i == 0:
+                        team1 = teams[0]
+                        team2 = teams[1]
+                    else:
+                        team1 = teams[1]
+                        team2 = teams[0]
+
+                    team1_stats = self.findMatchStats(team1, date)
+                    team1_stats_df = pandas.DataFrame([team1_stats], columns = ['goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
+                                                    'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1'])
+                    team2_stats = self.findMatchStats(team2, date)
+                    team2_stats_df = pandas.DataFrame([team2_stats], columns = ['goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
+                                                    'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
+                                                    'corners_against2'])
+
+                    if i == 0:
+                        homeaway = [[1, 0]]
+                    else:
+                        homeaway = [[0, 1]]
+
+                    # ha_df = pandas.DataFrame(columns = ['Home', 'Away'])
+                    # for ha in homeaway:
+                    #     df_len = len(homeaway)
+                    #     ha_df.loc[df_len] = ha
+
+                    ha_df = pandas.DataFrame(homeaway, columns = ['Home', 'Away'])
+
+                    team2_avg = self.findTeamStats(team2, date)
+                    team2_avg_df = pandas.DataFrame([team2_avg], columns = ['avg_goals2', 'avg_goals_against2', 'avg_pos2', 'avg_shots_on_t2', 'avg_att_shots2', 'avg_shot_acc2', 
+                                                    'avg_sot_against2', 'avg_att_shots_against2', 'avg_saves2', 'avg_save_acc2', 'avg_fouls2', 'avg_fouls_against2', 'avg_corners2', 
+                                                    'avg_corners_against2'])
+
+                    frames = [ha_df, team1_stats_df, team2_stats_df, team2_avg_df]
+                    result = pandas.concat(frames, ignore_index = True, axis = 1) # 44 cols
+                    training_data = training_data.append(result)
+
+            except Exception as e:
+                #print(e)
+                pass
+
+        training_data.to_csv('TimeSeriesData.csv')
+
+    def findTimeSeries(self, team1, team2, date):
+        try:
+            teams = [team1, team2]
+
+            for i in range(2):
+                if i == 0:
+                    team1 = teams[0]
+                    team2 = teams[1]
+                else:
+                    team1 = teams[1]
+                    team2 = teams[0]
+
+                team1_stats = self.findMatchStats(team1, date)
+                team2_stats = self.findMatchStats(team2, date)
+
+                if i == 0:
+                    homeaway = [1, 0]
+                else:
+                    homeaway = [0, 1]
+
+                team2_avg = self.findTeamStats(team2, date)
+
+                return homeaway + team1_stats + team2_stats + team2_avg
+
+
+        except Exception as e:
+            print('Insufficient data available')
+            pass
+
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -710,5 +807,6 @@ if __name__ == '__main__':
     #data.getData()
     #data.createTrainingData()
     #data.createPretrainData()
-    data.updateData()
+    #data.updateData()
+    data.createTimeSeriesData()
     print('Finished in %s seconds' % round(time.time() - start_time, 2))
