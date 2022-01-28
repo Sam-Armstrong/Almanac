@@ -162,6 +162,221 @@ class Data:
 
         return average_data
 
+    def updateData(self):
+        date_list = []
+        league_list = ['Premier-League', 'La-Liga', 'Bundesliga', 'Serie-A', 'Ligue-1', 'Major-League-Soccer', 'Championship', 'League-One', 'Primeira-Liga']
+
+        results_dataframe = pandas.DataFrame(columns = ['Date', 'Team 1', 'Team 2', 'Result'])
+        stats_dataframe = pandas.DataFrame(columns = ['Date', 'Team 1', 'Goals', 'Goals Against', 'Possession', 'Shots on Target', 'Attempted Shots', 'Shot Accuracy', 'SoT Against',
+                                                      'Att Shots Against', 'Saves', 'Save Accuracy', 'Fouls', 'Fouls Against', 'Corners', 'Corners Against', 'Offsides']) # 17
+        all_results = []
+        all_stats = []
+
+        previous_date = self.match_results.iloc[0, 1]
+
+        # Gets the n - 1 previous dates, up to the most recent date in the current data
+        for i in range(1, 3000): # (1, n)
+            next_date = str(datetime.date.fromordinal(datetime.date.today().toordinal() - i))
+
+            if next_date != previous_date:
+                date_list.append(next_date)
+            else:
+                break # Once all dates have been found up to the last date in the current data the loop breaks
+
+        print('Scraping Data...')
+        
+        url_list = []
+        dates = []
+
+        for date in date_list:
+            print('https://fbref.com/en/matches/' + date)
+            page = requests.get('https://fbref.com/en/matches/' + date)
+            soup = bs4.BeautifulSoup(page.content, 'lxml')
+
+            for td in soup.findAll('td', attrs = {'data-stat': 'match_report'}):
+                for a in td.findAll('a', href = True):
+                    new_url = a['href']
+                    in_league = False
+                    for league in league_list:
+                        if league in new_url:
+                            in_league = True
+
+                    if new_url not in url_list and in_league == True:
+                        url_list.append('https://fbref.com/' + new_url)
+                        dates.append(date)
+
+        url_list_len = len(url_list)
+        x = 0
+        matches = [] #Remove
+
+        for i, url in enumerate(url_list):
+            print(i + 1, '/', url_list_len)
+            #print(url)
+            date = dates[i]
+
+            # Team 1, Team 2, Score 1, Score 2, 
+            team1_stats = []
+            team2_stats = []
+            match_result = []
+            
+
+            try:
+                page = requests.get(url)
+                soup = bs4.BeautifulSoup(page.content, 'lxml')
+
+                match_result.append(date)
+
+                teams = []
+                for a in soup.findAll('a', href = True, attrs = {'itemprop' : 'name'}):
+                    match_result.append(a.text)
+                    teams.append(a.text)
+
+                scores = []
+
+                for div in soup.findAll('div', attrs = {'class': 'score'}):
+                    scores.append(int(div.text))
+
+                if scores[0] > scores[1]:
+                    result = 0 # Win
+                elif scores[0] < scores[1]:
+                    result = 2 # Loss
+                else:
+                    result = 1 # Draw
+
+                match_result.append(result)
+
+                numbers = []
+                for div in soup.findAll('div', attrs = {'id': 'team_stats'}):
+                    for td in div.findAll('td'):
+                        text = td.text.replace('\n', '')
+                        text = text.replace('%', '')
+                        
+                        for word in text.split():
+                            if word.isdigit():
+                                numbers.append(int(word))
+
+                if len(numbers) == 20:
+                    pos1 = numbers[0]
+                    pos2 = numbers[1]
+
+                    shots_on_t1 = numbers[8]
+                    att_shots1 = numbers[9]
+                    shot_acc1 = numbers[10]
+                    shot_acc2 = numbers[11]
+                    shots_on_t2 = numbers[12]
+                    att_shots2 = numbers[13]
+
+                    saves1 = numbers[14]
+                    save_acc1 = numbers[16]
+                    save_acc2 = numbers[17]
+                    saves2 = numbers[18]
+
+                elif len(numbers) == 14:
+                    pos1 = numbers[0]
+                    pos2 = numbers[1]
+
+                    shots_on_t1 = numbers[2]
+                    att_shots1 = numbers[3]
+                    shot_acc1 = numbers[4]
+                    shot_acc2 = numbers[5]
+                    shots_on_t2 = numbers[6]
+                    att_shots2 = numbers[7]
+
+                    saves1 = numbers[8]
+                    save_acc1 = numbers[10]
+                    save_acc2 = numbers[11]
+                    saves2 = numbers[12]
+
+                else:
+                    raise
+
+                
+                numbers = []
+                for d in soup.findAll('div', attrs = {'id': 'team_stats_extra'}):
+                    for div in d.findAll('div'):
+                        text = div.text
+                        
+                        for word in text.split():
+                            if word.isdigit():
+                                numbers.append(int(word))
+
+                if len(numbers) == 22:
+                    fouls1 = numbers[0]
+                    fouls2 = numbers[1]
+                    corners1 = numbers[2]
+                    corners2 = numbers[3]
+                    offsides1 = numbers[16]
+                    offsides2 = numbers[17]
+
+                elif len(numbers) == 6:
+                    fouls1 = numbers[0]
+                    fouls2 = numbers[1]
+                    corners1 = numbers[2]
+                    corners2 = numbers[3]
+                    offsides1 = numbers[4]
+                    offsides2 = numbers[5]
+
+                team1_stats.append(date)
+                team1_stats.append(teams[0])
+                team1_stats.append(scores[0])
+                team1_stats.append(scores[1])
+                team1_stats.append(pos1)
+                team1_stats.append(shots_on_t1)
+                team1_stats.append(att_shots1)
+                team1_stats.append(shot_acc1)
+                team1_stats.append(shots_on_t2)
+                team1_stats.append(att_shots2) # Shots against them
+                team1_stats.append(saves1)
+                team1_stats.append(save_acc1)
+                team1_stats.append(fouls1)
+                team1_stats.append(fouls2)
+                team1_stats.append(corners1)
+                team1_stats.append(corners2)
+                team1_stats.append(offsides1)
+
+                team2_stats.append(date)
+                team2_stats.append(teams[1])
+                team2_stats.append(scores[1])
+                team2_stats.append(scores[0])
+                team2_stats.append(pos2)
+                team2_stats.append(shots_on_t2)
+                team2_stats.append(att_shots2)
+                team2_stats.append(shot_acc2)
+                team2_stats.append(shots_on_t1)
+                team2_stats.append(att_shots1) # Shots against them
+                team2_stats.append(saves2)
+                team2_stats.append(save_acc2)
+                team2_stats.append(fouls2)
+                team2_stats.append(fouls1)
+                team2_stats.append(corners2)
+                team2_stats.append(corners1)
+                team2_stats.append(offsides2)
+
+                all_results.append(match_result)
+                all_stats.append(team1_stats)
+                all_stats.append(team2_stats)
+                
+
+            except Exception as e:
+                pass
+
+        for data in all_results:
+            df_len = len(results_dataframe)
+            results_dataframe.loc[df_len] = data
+        
+        frames = [results_dataframe, self.match_results]
+        result = pandas.concat(frames)
+        #results_dataframe.append(self.match_results, ignore_index = True) # Adds the new data to the existing data
+        result.to_csv('MatchResults.csv') # Saves all the data to a CSV (overwrites existing file)
+
+        for data in all_stats:
+            df_len = len(stats_dataframe)
+            stats_dataframe.loc[df_len] = data
+
+        frames = [stats_dataframe, self.match_stats]
+        result = pandas.concat(frames)
+        #stats_dataframe.append(self.match_stats, ignore_index = True)
+        result.to_csv('MatchStats.csv')
 
     def getData(self):
         date_list = []
@@ -494,5 +709,6 @@ if __name__ == '__main__':
     data = Data()
     #data.getData()
     #data.createTrainingData()
-    data.createPretrainData()
+    #data.createPretrainData()
+    data.updateData()
     print('Finished in %s seconds' % round(time.time() - start_time, 2))
