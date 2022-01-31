@@ -3,7 +3,8 @@ Author: Sam Armstrong
 Date: 2021
 """
 
-import bs4, requests, datetime, pandas, time
+import bs4, requests, datetime, pandas, time, torch, einops
+import numpy as np
 
 # Calculates the days between a given date and the current date
 def calculateDaysSince(date):
@@ -45,6 +46,11 @@ class Data:
             self.pretrain_data = pandas.read_csv('PretrainData.csv')
         except:
             self.pretrain_data = None
+
+        try:
+            self.time_series = pandas.read_csv('TimeSeriesData.csv')
+        except:
+            pass
 
 
     def findMatchStats(self, team_name, date):
@@ -704,9 +710,11 @@ class Data:
         training_data.to_csv('TrainingData.csv')
 
     
-    
+    ## Need to create function for retriving time series for a certain team at a certain date
+    ## Add date?
+    ## Filter out dates older than 2016/2017?
     def createTimeSeriesData(self):
-        training_data = pandas.DataFrame(columns = ['Home', 'Away', 'goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
+        training_data = pandas.DataFrame(columns = ['Date', 'Team 1', 'Team 2', 'Result', 'Home', 'Away', 'goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
                                                     'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1', 'goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
                                                     'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
                                                     'corners_against2', 'avg_goals2', 'avg_goals_against2', 'avg_pos2', 'avg_shots_on_t2', 'avg_att_shots2', 'avg_shot_acc2', 
@@ -715,20 +723,19 @@ class Data:
 
         for index, row in self.match_results.iterrows():
             print(index, '/', len(self.match_results))
+
             try:
                 date = row[1]
-                days_since_match = calculateDaysSince(date)
+
+                if date < "2016-01-01":
+                    raise
+
                 team1 = row[2].rstrip()
                 team2 = row[3].rstrip()
                 result = row[4]
                 teams = [team1, team2]
 
                 for i in range(2):
-                    # team1_stats = self.match_stats[self.match_stats['Team 1'].str.contains(team1)]
-                    # team1_stats = team1_stats[team1_stats['Date'].str.contains(date)]
-                    # team2_stats = self.match_stats[self.match_stats['Team 1'].str.contains(team2)]
-                    # team2_stats = team2_stats[team2_stats['Date'].str.contains(date)]
-
                     if i == 0:
                         team1 = teams[0]
                         team2 = teams[1]
@@ -736,69 +743,97 @@ class Data:
                         team1 = teams[1]
                         team2 = teams[0]
 
-                    team1_stats = self.findMatchStats(team1, date)
-                    team1_stats_df = pandas.DataFrame([team1_stats], columns = ['goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
-                                                    'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1'])
-                    team2_stats = self.findMatchStats(team2, date)
-                    team2_stats_df = pandas.DataFrame([team2_stats], columns = ['goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
-                                                    'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
-                                                    'corners_against2'])
+                    team1_stats = self.findMatchStats(team1, date) # 14
+                    team2_stats = self.findMatchStats(team2, date) # 14
 
                     if i == 0:
-                        homeaway = [[1, 0]]
+                        homeaway = [date, team1, team2, result, 1, 0] # 6
                     else:
-                        homeaway = [[0, 1]]
+                        homeaway = [date, team1, team2, result, 0, 1]
 
-                    # ha_df = pandas.DataFrame(columns = ['Home', 'Away'])
-                    # for ha in homeaway:
-                    #     df_len = len(homeaway)
-                    #     ha_df.loc[df_len] = ha
+                    team2_avg = self.findTeamStats(team2, date) # 14
 
-                    ha_df = pandas.DataFrame(homeaway, columns = ['Home', 'Away'])
-
-                    team2_avg = self.findTeamStats(team2, date)
-                    team2_avg_df = pandas.DataFrame([team2_avg], columns = ['avg_goals2', 'avg_goals_against2', 'avg_pos2', 'avg_shots_on_t2', 'avg_att_shots2', 'avg_shot_acc2', 
-                                                    'avg_sot_against2', 'avg_att_shots_against2', 'avg_saves2', 'avg_save_acc2', 'avg_fouls2', 'avg_fouls_against2', 'avg_corners2', 
-                                                    'avg_corners_against2'])
-
-                    frames = [ha_df, team1_stats_df, team2_stats_df, team2_avg_df]
-                    result = pandas.concat(frames, ignore_index = True, axis = 1) # 44 cols
-                    training_data = training_data.append(result)
+                    output = homeaway + team1_stats + team2_stats + team2_avg
+                    training_data.loc[len(training_data)] = output
 
             except Exception as e:
-                #print(e)
                 pass
 
         training_data.to_csv('TimeSeriesData.csv')
 
-    def findTimeSeries(self, team1, team2, date):
+    
+    def findTimeSeries(self, team, date, max_len): # Returns PyTorch tensor
         try:
-            teams = [team1, team2]
-
-            for i in range(2):
-                if i == 0:
-                    team1 = teams[0]
-                    team2 = teams[1]
+            team_data = self.time_series[self.time_series['Team 1'].str.contains(team)]
+            seq_tensor = torch.empty((max_len, 44)) # n_features: 44
+            
+            for index, row in team_data.iterrows():
+                match_date = row[1]
+                if match_date >= date: # Current match is not included in the training data
+                    pass
                 else:
-                    team1 = teams[1]
-                    team2 = teams[0]
-
-                team1_stats = self.findMatchStats(team1, date)
-                team2_stats = self.findMatchStats(team2, date)
-
-                if i == 0:
-                    homeaway = [1, 0]
-                else:
-                    homeaway = [0, 1]
-
-                team2_avg = self.findTeamStats(team2, date)
-
-                return homeaway + team1_stats + team2_stats + team2_avg
+                    match_tensor = torch.from_numpy(row[5:].values)
+                    print(match_tensor)
 
 
         except Exception as e:
-            print('Insufficient data available')
+            print(e)
             pass
+
+    
+    # Creates and batches the training data into the correct shape; masking occurs within the model
+    def batchifyEncoderData(self, batch_size, seq_len, n_features):
+        # train_data: pandas dataframe
+        out_data = torch.zeros((len(self.time_series), seq_len, n_features))
+        targets = torch.zeros((len(self.time_series), seq_len, 14))
+
+        # For all matches, try to get the sequence of matches leading to it
+        # Load into out_data tensor
+        # Load in targets
+        # Ensure the size of the tensors is correct
+        # Batch the tensors?
+        # Return these tensors
+
+        # Adding the sequential data for each match into a tensor. Also creating the target values
+        for index, row in self.match_stats.iterrows():
+            try:
+                if index % 100 == 0:
+                    print(index)
+                date = row[1]
+                team = row[2]
+                next_match_stats = torch.from_numpy(row[3:17].to_numpy(dtype = np.float64))
+                team_data = self.time_series[self.time_series['Team 1'].str.contains(team)]
+                i = 1
+                
+                for idx, match in team_data.iterrows():
+                    match_date = match[1]
+
+                    if match_date < date and i <= seq_len:
+                        out_data[index][seq_len - i] = torch.from_numpy(match[5:].to_numpy(dtype = np.float64)) # Automatically pads with zeros, as the data is added in reverse order # Most recent matches at the bottom
+                        targets[index][seq_len - i] = next_match_stats
+                        next_match_stats = torch.from_numpy(match[7:21].to_numpy(dtype = np.float64))
+                        i += 1   
+
+            except Exception as e:
+                print(e)
+                pass
+
+            #print(out_data[index])
+        
+        # Duplicates the tensor along seq_len dimension to allow masking
+        expanded_tensor = einops.repeat(out_data, 'b m n -> b s m n', s = seq_len) # Correctly duplicates across the seq_len - now just need to mask
+
+        # Batch up the data
+        n_batches = expanded_tensor.shape[0] // batch_size
+        batched_tensor = expanded_tensor[:n_batches * batch_size]
+        batched_tensor = batched_tensor.reshape(n_batches, batch_size, seq_len, seq_len, n_features)
+
+        batched_targets = targets[:n_batches * batch_size]
+        batched_targets = batched_targets.reshape(n_batches, batch_size, seq_len, 14)
+
+        torch.save(batched_tensor, 'encoder_training_data.pt')
+        torch.save(batched_targets, 'encoder_targets.pt')
+        # pytorch tensor of the time series data batched into shape (n_batches, batch_size, seq_len, seq_len, 14) and target tensor     (14 being the number of target stats for a given match)
 
 
 if __name__ == '__main__':
@@ -808,5 +843,6 @@ if __name__ == '__main__':
     #data.createTrainingData()
     #data.createPretrainData()
     #data.updateData()
-    data.createTimeSeriesData()
+    #data.createTimeSeriesData()
+    data.batchifyEncoderData(batch_size = 100, seq_len = 12, n_features = 44)
     print('Finished in %s seconds' % round(time.time() - start_time, 2))
