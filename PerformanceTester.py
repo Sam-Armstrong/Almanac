@@ -1,70 +1,91 @@
-from Predictor import Predictor
+#from Predictor import Predictor
 from Data import Data
 import pandas
 import numpy as np
+import torch
+from Model import Model
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def test():
-    predictors = []
-    #predictors.append(Predictor(model_name = 'best_model.pickle', eval = True))
-    #predictors.append(Predictor(model_name = 'BSF1.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'En1.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'En2.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'En3.pickle', eval = True))
-
+    # predictors = []
+    # predictors.append(Predictor(model_name = 'trained_model.pickle', eval = True))
     
     #predictor = Predictor()
     data = Data()
 
-    df = pandas.read_csv('TestOdds2.csv')
+    odds_df = pandas.read_csv('TestOdds1.csv')
     i = 0
     returns = 0
     t_est = 0
     num_correct = 0
     num_matches = 0
 
-    for index, row in df.iterrows():
+    # model = Model().to(device)
+    # model.load_state_dict(torch.load('trained_model.pickle'))
+    # model.eval()
+    #model = Model
+    model = torch.load('model.pt')
+    model.eval()
+
+    means = torch.load('trained_means.pt').to(device)
+    stds = torch.load('trained_stds.pt').to(device)
+    means = means.reshape(1, means.shape[0], means.shape[1])
+    stds = stds.reshape(1, stds.shape[0], stds.shape[1])
+
+    for index, row in odds_df.iterrows():
         try:
             t_chance_win = 0
             t_chance_draw = 0
             t_chance_loss = 0
 
-            for predictor in predictors:
-                date = row[0]
-                team1 = row[1]
-                team2 = row[2]
-                result = row[3]
-                odds1 = row[4]
-                odds2 = row[5]
-                odds3 = row[6]
+            #for predictor in predictors:
+            date = row[0]
+            team1 = row[1]
+            team2 = row[2]
+            result = row[3]
+            odds1 = row[4]
+            odds2 = row[5]
+            odds3 = row[6]
 
-                prediction_data1 = [0] + (data.findTeamStats(team1, date)) + (data.findTeamStats(team2, date))
-                prediction_data2 = [1] + (data.findTeamStats(team2, date)) + (data.findTeamStats(team1, date))
+            prediction_data1 = data.findTimeSeries(team1, team2, date)
+            prediction_data2 = data.findTimeSeries(team2, team1, date)
 
-                prediction_data1 = np.array([prediction_data1])
-                prediction_data2 = np.array([prediction_data2])
+            model.eval()
+            model.evaluate()
+            prediction_data1 = prediction_data1.to(device)
+            prediction_data1 -= means
+            prediction_data1 /= stds
+            prediction1 = model.forward(prediction_data1[:, :, :44], prediction_data1[:, :, 44:])
+            prediction1 = torch.mean(prediction1, dim = 1)
 
-                prediction1 = predictor.predict(prediction_data1)
-                prediction2 = predictor.predict(prediction_data2)
+            # prediction1 = predictor.predict(prediction_data1)
+            # prediction1 = torch.mean(prediction1, dim = 1)
+            #prediction2 = predictor.predict(prediction_data2)
 
-                chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
-                chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
-                chance_loss = round((prediction1[0][2].item() + prediction2[0][0].item()) / 2, 3)
+            #     chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
+            #     chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
+            #     chance_loss = round((prediction1[0][2].item() + prediction2[0][0].item()) / 2, 3)
 
-                t_chance_win += chance_win
-                t_chance_draw += chance_draw
-                t_chance_loss += chance_loss
+            #     t_chance_win += chance_win
+            #     t_chance_draw += chance_draw
+            #     t_chance_loss += chance_loss
 
-            # uncertainty = abs(prediction1[0][0].item() - prediction2[0][2].item()) + abs(prediction1[0][1].item() + prediction2[0][1].item()) + abs(prediction1[0][2].item() + prediction2[0][0].item())
+            # # uncertainty = abs(prediction1[0][0].item() - prediction2[0][2].item()) + abs(prediction1[0][1].item() + prediction2[0][1].item()) + abs(prediction1[0][2].item() + prediction2[0][0].item())
 
-            # Doesn't seem to help
-            # if uncertainty < 1:
-            #     raise
+            # # Doesn't seem to help
+            # # if uncertainty < 1:
+            # #     raise
 
-            chance_win = t_chance_win / len(predictors)
-            chance_draw = t_chance_draw / len(predictors)
-            chance_loss = t_chance_loss / len(predictors)
+            # chance_win = t_chance_win / len(predictors)
+            # chance_draw = t_chance_draw / len(predictors)
+            # chance_loss = t_chance_loss / len(predictors)
 
-            #print(chance_win, chance_draw, chance_loss)
+            chance_win = round(prediction1[0][0].item(), 2)
+            chance_draw = round(prediction1[0][1].item(), 2)
+            chance_loss = round(prediction1[0][2].item(), 2)
+
+            print(chance_win, chance_draw, chance_loss)
 
             est_return1 = round(chance_win * float(odds1), 3)
             est_return2 = round(chance_draw * float(odds2), 3)
@@ -122,6 +143,7 @@ def test():
             #print(uncertainty)
 
         except Exception as e:
+            print(e)
             pass
 
     print('i: ', i)

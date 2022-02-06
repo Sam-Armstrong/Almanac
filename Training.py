@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from PretrainingModel import PretrainingModel
+from Model import Model
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
@@ -20,7 +20,7 @@ def generate_mask(seq_len, batch_size = 100):
     #mask = mask.repeat(batch_size) ## Check if this is correct
     return mask
 
-class PreTrain():
+class Train():
     def __init__(self, model, means, stds):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
@@ -29,25 +29,26 @@ class PreTrain():
         self.data = Data()
 
     def train(self, training_data):
-        print(len(training_data))
-
-        num_epochs = 50
-        lr = 3e-6 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        num_epochs = 10
+        lr = 3e-5 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
-        batch_size = 250
-        warmup_steps = 0
+        batch_size = 500
+        warmup_steps = 2
         seq_len = 12
         n_features = 44
         n_out = 14
 
         start_time = time.time()
-        plot_data = np.empty((num_epochs - 1), dtype = float)
+        plot_data = np.empty((num_epochs), dtype = float)
 
-        X = torch.load('pretraining_data.pt').to(self.device)
-        y = torch.load('pretraining_targets.pt').to(self.device)
+        X = torch.load('training_data.pt').to(self.device)
+        y = torch.load('training_targets.pt').to(self.device)
+
+        # print(X)
+        # print(y)
 
         # X shape: (18911, 12, 88)
-        # y shape: (18911, 28)
+        # y shape: (18911, 3)
 
         self.means = torch.mean(X, dim = 0)
         self.stds = torch.std(X, dim = 0)
@@ -82,7 +83,7 @@ class PreTrain():
             train_loss = 0.0
             self.model.train()
 
-            for batch_idx, (data, labels) in enumerate(train_dataloader):
+            for batch_idx, (data, labels) in enumerate(train_dataloader):               
                 data = data.float().to(self.device)
                 labels = labels.to(self.device)
                 labels = einops.repeat(labels, 'b n -> b s n', s = seq_len)
@@ -95,6 +96,7 @@ class PreTrain():
 
                 optimizer.zero_grad() # Resets the optimizer gradients to zero for each batch
                 loss.backward() # Backpropagates the network using the loss to calculate the local gradients
+
                 optimizer.step() # Updates the network weights and biases
 
             valid_loss = 0.0
@@ -119,8 +121,7 @@ class PreTrain():
             # valid_accuracy = check_accuracy(val_dataloader)
             # print(valid_accuracy, '% Validation Accuracy')
             print('Validation Loss: ', valid_loss)
-            if epoch != 0:
-                plot_data[epoch - 1] = valid_loss
+            plot_data[epoch] = valid_loss
             print('Epoch time: %s seconds' % round(time.time() - epoch_start, 2))
 
         print('Finished in %s seconds' % round(time.time() - start_time, 1))
@@ -129,17 +130,18 @@ class PreTrain():
         plt.xlabel('Epoch')
         plt.show()
 
-        torch.save(self.model.state_dict(), 'pretrained_model.pickle')
+        #torch.save(self.model.state_dict(), 'trained_model.pickle')
+        torch.save(self.model, 'model.pt')
         print('Saved model to .pickle file')
-        torch.save(self.means, 'pre_means.pt')
-        torch.save(self.stds, 'pre_stds.pt')
+        torch.save(self.means, 'trained_means.pt')
+        torch.save(self.stds, 'trained_stds.pt')
         print('Saved means and standard deviations')
 
 if __name__ == '__main__':
     data = Data()
-    model = PretrainingModel(440, 12, 10, 880)
+    model = Model()
     means = torch.zeros((40))
     stds = torch.zeros((40))
     pretrain_data = data.pretrain_data
-    p = PreTrain(model, means, stds)
+    p = Train(model, means, stds)
     p.train(pretrain_data)

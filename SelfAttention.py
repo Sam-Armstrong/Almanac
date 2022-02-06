@@ -30,13 +30,16 @@ class SelfAttention(nn.Module):
         queries = queries.reshape(queries.shape[0] * queries.shape[1], queries.shape[2])
         # values/keys/queries shape: (batch_size * seq_len, emsize)
 
-        similarities = torch.matmul(queries, keys.T) # similarities shape: (batch_size * seq_len, batch_size * seq_len)
+        similarities = torch.matmul(queries, keys.T) # similarities shape: (batch_size * seq_len, batch_size * seq_len)]
+        similarities = similarities.reshape(batch_size, batch_size, seq_len, seq_len)
+
+        #print(similarities)
         
         # Mask the input
         if mask is not None:
             similarities = similarities.masked_fill(mask == 0, float('-1e20'))
 
-        print('Masked similarities', similarities)
+        similarities = similarities.reshape(seq_len * batch_size, seq_len * batch_size)
 
         attention_weights = self.softmax(similarities / math.sqrt(self.emsize))
 

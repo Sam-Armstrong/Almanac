@@ -615,50 +615,50 @@ class Data:
         stats_dataframe.to_csv('MatchStats.csv')
 
 
-    def createPretrainData(self):
-        all_data = []
+    # def createPretrainData(self):
+    #     all_data = []
 
-        training_data = pandas.DataFrame(columns = ['Home/Away', 'goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
-                                                    'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1', 'goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
-                                                    'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
-                                                    'corners_against2', 'tgoals1', 'tgoals_against1', 'tpos1', 'tshots_on_t1', 'tatt_shots1', 'tshot_acc1', 'tsot_against1', 'tatt_shots_against1', 'tsaves1', 
-                                                    'tsave_acc1', 'tfouls1', 'tfouls_against1', 'tcorners1', 'tcorners_against1', 'tgoals2', 'tgoals_against2', 'tpos2', 'tshots_on_t2', 
-                                                    'tatt_shots2', 'tshot_acc2', 'tsot_against2', 'tatt_shots_against2', 'tsaves2', 'tsave_acc2', 'tfouls2', 'tfouls_against2', 'tcorners2', 
-                                                    'tcorners_against2'])
+    #     training_data = pandas.DataFrame(columns = ['Home/Away', 'goals1', 'goals_against1', 'pos1', 'shots_on_t1', 'att_shots1', 'shot_acc1', 'sot_against1', 'att_shots_against1', 'saves1', 
+    #                                                 'save_acc1', 'fouls1', 'fouls_against1', 'corners1', 'corners_against1', 'goals2', 'goals_against2', 'pos2', 'shots_on_t2', 
+    #                                                 'att_shots2', 'shot_acc2', 'sot_against2', 'att_shots_against2', 'saves2', 'save_acc2', 'fouls2', 'fouls_against2', 'corners2', 
+    #                                                 'corners_against2', 'tgoals1', 'tgoals_against1', 'tpos1', 'tshots_on_t1', 'tatt_shots1', 'tshot_acc1', 'tsot_against1', 'tatt_shots_against1', 'tsaves1', 
+    #                                                 'tsave_acc1', 'tfouls1', 'tfouls_against1', 'tcorners1', 'tcorners_against1', 'tgoals2', 'tgoals_against2', 'tpos2', 'tshots_on_t2', 
+    #                                                 'tatt_shots2', 'tshot_acc2', 'tsot_against2', 'tatt_shots_against2', 'tsaves2', 'tsave_acc2', 'tfouls2', 'tfouls_against2', 'tcorners2', 
+    #                                                 'tcorners_against2'])
 
-        for index, row in self.match_results.iterrows():
-            print(index, '/', len(self.match_results))
-            try:
-                date = row[1]
-                team1 = row[2].rstrip()
-                team2 = row[3].rstrip()
-                result = row[4]
+    #     for index, row in self.match_results.iterrows():
+    #         print(index, '/', len(self.match_results))
+    #         try:
+    #             date = row[1]
+    #             team1 = row[2].rstrip()
+    #             team2 = row[3].rstrip()
+    #             result = row[4]
 
-                target1 = self.findMatchStats(team1, date)
-                target2 = self.findMatchStats(team2, date)
-                team1_useful_data = self.findTeamStats(team1, date)
-                team2_useful_data = self.findTeamStats(team2, date)
+    #             target1 = self.findMatchStats(team1, date)
+    #             target2 = self.findMatchStats(team2, date)
+    #             team1_useful_data = self.findTeamStats(team1, date)
+    #             team2_useful_data = self.findTeamStats(team2, date)
 
-                # days_since_match = calculateDaysSince(date)
+    #             # days_since_match = calculateDaysSince(date)
 
-                # if days_since_match < 16:
-                #     raise
+    #             # if days_since_match < 16:
+    #             #     raise
 
-                full_list1 = [0] + team1_useful_data + team2_useful_data + target1 + target2 # Size: (14x4) + 1 = 57
-                full_list2 = [1] + team2_useful_data + team1_useful_data + target2 + target1
+    #             full_list1 = [0] + team1_useful_data + team2_useful_data + target1 + target2 # Size: (14x4) + 1 = 57
+    #             full_list2 = [1] + team2_useful_data + team1_useful_data + target2 + target1
 
-                all_data.append(full_list1)
-                all_data.append(full_list2)
+    #             all_data.append(full_list1)
+    #             all_data.append(full_list2)
 
-            except Exception as e:
-                print(e)
-                pass # Some matches do not have the correct past data to allow them to be included - hence they are passed over with this except
+    #         except Exception as e:
+    #             print(e)
+    #             pass # Some matches do not have the correct past data to allow them to be included - hence they are passed over with this except
             
-        for data in all_data:
-            df_len = len(training_data)
-            training_data.loc[df_len] = data
+    #     for data in all_data:
+    #         df_len = len(training_data)
+    #         training_data.loc[df_len] = data
 
-        training_data.to_csv('PretrainData.csv')
+    #     training_data.to_csv('PretrainData.csv')
 
     def createTrainingData(self):
         all_data = []
@@ -781,8 +781,8 @@ class Data:
             pass
 
     
-    # Creates and batches the training data into the correct shape; masking occurs within the model
-    def batchifyEncoderData(self, batch_size, seq_len, n_features):
+    # Creates the encoder training data
+    def createEncoderData(self, batch_size, seq_len, n_features): # Implement removal of unused rows for training data tensor
         # train_data: pandas dataframe
         out_data = torch.zeros((len(self.time_series), seq_len, n_features))
         targets = torch.zeros((len(self.time_series), seq_len, 14))
@@ -812,7 +812,7 @@ class Data:
                         out_data[index][seq_len - i] = torch.from_numpy(match[5:].to_numpy(dtype = np.float64)) # Automatically pads with zeros, as the data is added in reverse order # Most recent matches at the bottom
                         targets[index][seq_len - i] = next_match_stats
                         next_match_stats = torch.from_numpy(match[7:21].to_numpy(dtype = np.float64))
-                        i += 1   
+                        i += 1
 
             except Exception as e:
                 print(e)
@@ -821,20 +821,176 @@ class Data:
             #print(out_data[index])
         
         # Duplicates the tensor along seq_len dimension to allow masking
-        expanded_tensor = einops.repeat(out_data, 'b m n -> b s m n', s = seq_len) # Correctly duplicates across the seq_len - now just need to mask
+        # expanded_tensor = einops.repeat(out_data, 'b m n -> b s m n', s = seq_len) # Correctly duplicates across the seq_len - now just need to mask
 
-        # Batch up the data
-        n_batches = expanded_tensor.shape[0] // batch_size
-        batched_tensor = expanded_tensor[:n_batches * batch_size]
-        batched_tensor = batched_tensor.reshape(n_batches, batch_size, seq_len, seq_len, n_features)
+        # # Batch up the data
+        # n_batches = expanded_tensor.shape[0] // batch_size
+        # batched_tensor = expanded_tensor[:n_batches * batch_size]
+        # batched_tensor = batched_tensor.reshape(n_batches, batch_size, seq_len, seq_len, n_features)
 
-        batched_targets = targets[:n_batches * batch_size]
-        batched_targets = batched_targets.reshape(n_batches, batch_size, seq_len, 14)
+        # batched_targets = targets[:n_batches * batch_size]
+        # batched_targets = batched_targets.reshape(n_batches, batch_size, seq_len, 14)
 
-        torch.save(batched_tensor, 'encoder_training_data.pt')
-        torch.save(batched_targets, 'encoder_targets.pt')
+        torch.save(out_data, 'encoder_training_data.pt')
+        torch.save(targets, 'encoder_targets.pt')
         # pytorch tensor of the time series data batched into shape (n_batches, batch_size, seq_len, seq_len, 14) and target tensor     (14 being the number of target stats for a given match)
 
+
+    def createPretrainingData(self, seq_len, n_features):
+        out_data = torch.zeros((len(self.match_results), seq_len, n_features * 2))
+        targets = torch.zeros((len(self.match_results), 28))
+        n = 0 # Number of matches used in the created training data
+
+        for index, row in self.match_results.iterrows():
+            print(index)
+            date = row[1]
+            team1 = row[2]
+            team2 = row[3]
+            result = row[4]
+
+            team1_data = self.time_series[self.time_series['Team 1'].str.contains(team1)]
+            team2_data = self.time_series[self.time_series['Team 1'].str.contains(team2)]
+
+            try:
+                target_list = self.findMatchStats(team1, date) + self.findMatchStats(team1, date)
+                target = torch.tensor(target_list)
+
+                team1_tensor = torch.zeros((seq_len, n_features))
+                team2_tensor = torch.zeros((seq_len, n_features))
+
+                i1 = 1
+                i2 = 1
+                for (idx1, match1), (idx2, match2) in zip(team1_data.iterrows(), team2_data.iterrows()):
+                    match1_date = match1[1]
+                    match2_date = match2[1]
+
+                    if match1_date < date and i1 <= seq_len:
+                        team1_tensor[seq_len - i1] = torch.from_numpy(match1[5:].to_numpy(dtype = np.float64))
+                        i1 += 1
+                        #print('adding', torch.from_numpy(match1[5:].to_numpy(dtype = np.float64)))
+                    
+                    if match2_date < date and i2 <= seq_len:
+                        team2_tensor[seq_len - i2] = torch.from_numpy(match2[5:].to_numpy(dtype = np.float64))
+                        i2 += 1
+
+                if i1 <= 3 or i2 <= 3: # At least three matches need to be in each of the sequences
+                    raise
+
+                concat_tensor = torch.concat((team1_tensor, team2_tensor), dim = -1)
+                # Expected concat shape: (seq_len, 88)
+                #print('Concat shape:', concat_tensor.shape)
+
+                out_data[n] = concat_tensor
+                targets[n] = target
+                n += 1
+
+            except Exception as e:
+                print(e)
+                pass
+
+        print('n:', n)
+        out_data = out_data[0:n] # Remove unused rows from tensor
+        targets = targets[:n]
+        print('out_data:', out_data.shape)
+
+        torch.save(out_data, 'pretraining_data.pt')
+        torch.save(targets, 'pretraining_targets.pt')
+
+    def createTrainingData(self, seq_len, n_features):
+        out_data = torch.zeros((len(self.match_results), seq_len, n_features * 2))
+        targets = torch.zeros((len(self.match_results), 3))
+        n = 0 # Number of matches used in the created training data
+
+        for index, row in self.match_results.iterrows():
+            print(index)
+            date = row[1]
+            team1 = row[2]
+            team2 = row[3]
+            result = row[4]
+            result_array = [0, 0, 0]
+
+            team1_data = self.time_series[self.time_series['Team 1'].str.contains(team1)]
+            team2_data = self.time_series[self.time_series['Team 1'].str.contains(team2)]
+
+            try:
+                result_array[result] += 1
+                target = torch.tensor(result_array)
+
+                team1_tensor = torch.zeros((seq_len, n_features))
+                team2_tensor = torch.zeros((seq_len, n_features))
+
+                i1 = 1
+                i2 = 1
+                for (idx1, match1), (idx2, match2) in zip(team1_data.iterrows(), team2_data.iterrows()):
+                    match1_date = match1[1]
+                    match2_date = match2[1]
+
+                    if match1_date < date and i1 <= seq_len:
+                        team1_tensor[seq_len - i1] = torch.from_numpy(match1[5:].to_numpy(dtype = np.float64))
+                        i1 += 1
+                        #print('adding', torch.from_numpy(match1[5:].to_numpy(dtype = np.float64)))
+                    
+                    if match2_date < date and i2 <= seq_len:
+                        team2_tensor[seq_len - i2] = torch.from_numpy(match2[5:].to_numpy(dtype = np.float64))
+                        i2 += 1
+
+                if i1 <= 3 or i2 <= 3: # At least three matches need to be in each of the sequences
+                    raise
+
+                concat_tensor = torch.concat((team1_tensor, team2_tensor), dim = -1)
+                # Expected concat shape: (seq_len, 88)
+                #print('Concat shape:', concat_tensor.shape)
+
+                out_data[n] = concat_tensor
+                targets[n] = target
+                n += 1
+
+            except Exception as e:
+                print(e)
+                pass
+
+        print('n:', n)
+        out_data = out_data[:n] # Remove unused rows from tensor
+        targets = targets[:n]
+        print('out_data:', out_data.shape)
+
+        torch.save(out_data, 'training_data.pt')
+        torch.save(targets, 'training_targets.pt')
+
+    def findTimeSeries(self, team1, team2, date, seq_len = 12, n_features = 44):
+        team1_data = self.time_series[self.time_series['Team 1'].str.contains(team1)]
+        team2_data = self.time_series[self.time_series['Team 1'].str.contains(team2)]
+
+        try:
+            team1_tensor = torch.zeros((seq_len, n_features))
+            team2_tensor = torch.zeros((seq_len, n_features))
+
+            i1 = 1
+            i2 = 1
+            for (idx1, match1), (idx2, match2) in zip(team1_data.iterrows(), team2_data.iterrows()):
+                match1_date = match1[1]
+                match2_date = match2[1]
+
+                if match1_date < date and i1 <= seq_len:
+                    team1_tensor[seq_len - i1] = torch.from_numpy(match1[5:].to_numpy(dtype = np.float64))
+                    i1 += 1
+                    #print('adding', torch.from_numpy(match1[5:].to_numpy(dtype = np.float64)))
+                
+                if match2_date < date and i2 <= seq_len:
+                    team2_tensor[seq_len - i2] = torch.from_numpy(match2[5:].to_numpy(dtype = np.float64))
+                    i2 += 1
+
+            if i1 <= 3 or i2 <= 3: # At least three matches need to be in each of the sequences
+                raise
+
+            concat_tensor = torch.concat((team1_tensor, team2_tensor), dim = -1)
+            # concat shape: (seq_len, 88)
+
+            return concat_tensor.reshape(1, seq_len, n_features * 2) # Adds batch dimension
+
+        except Exception as e:
+            print('Not enough data available for this match')
+            return None
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -844,5 +1000,8 @@ if __name__ == '__main__':
     #data.createPretrainData()
     #data.updateData()
     #data.createTimeSeriesData()
-    data.batchifyEncoderData(batch_size = 100, seq_len = 12, n_features = 44)
+    #data.createEncoderData(batch_size = 100, seq_len = 12, n_features = 44)
+    data.createPretrainingData(12, 44)
+    data.createTrainingData(12, 44)
+    data.updateData()
     print('Finished in %s seconds' % round(time.time() - start_time, 2))
