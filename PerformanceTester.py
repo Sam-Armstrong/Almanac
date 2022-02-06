@@ -6,10 +6,10 @@ import numpy as np
 def test():
     predictors = []
     #predictors.append(Predictor(model_name = 'best_model.pickle', eval = True))
-    #predictors.append(Predictor(model_name = 'BSF1.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'En1.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'En2.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'En3.pickle', eval = True))
+    predictors.append(Predictor(model_name = 'BSF1.pickle', eval = True))
+    # predictors.append(Predictor(model_name = 'En1.pickle', eval = True))
+    # predictors.append(Predictor(model_name = 'En2.pickle', eval = True))
+    # predictors.append(Predictor(model_name = 'En3.pickle', eval = True))
 
     
     #predictor = Predictor()
