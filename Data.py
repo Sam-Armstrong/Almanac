@@ -53,6 +53,24 @@ class Data:
             pass
 
 
+    def findMatchResult(self, team_name, date):
+        #n_include = 7 # The number of past matches to calculate the team average from
+
+        days_since_match = calculateDaysSince(date)
+        team_data = self.match_results[self.match_results['Date'].str.contains(date)]
+        match_data1 = team_data[team_data['Team 1'].str.contains(team_name)]
+        match_data2 = team_data[team_data['Team 2'].str.contains(team_name)]
+        result = torch.zeros((3))
+
+        for index, row in match_data1.iterrows():
+            result[row[4]] = 1
+
+        for index, row in match_data2.iterrows():
+            result[row[4]] = 1
+
+        return result
+
+
     def findMatchStats(self, team_name, date):
         #n_include = 7 # The number of past matches to calculate the team average from
 
@@ -780,12 +798,54 @@ class Data:
             print(e)
             pass
 
+
+    # Creates the encoder training data
+    def createEncoderDataResultTargets(self, batch_size, seq_len, n_features): # Implement removal of unused rows for training data tensor
+        # train_data: pandas dataframe
+        out_data = torch.zeros((len(self.time_series), seq_len, n_features))
+        targets = torch.zeros((len(self.time_series), seq_len, 3))
+
+        # For all matches, try to get the sequence of matches leading to it
+        # Load into out_data tensor
+        # Load in targets
+        # Ensure the size of the tensors is correct
+        # Batch the tensors?
+        # Return these tensors
+
+        # Adding the sequential data for each match into a tensor. Also creating the target values
+        for index, row in self.match_stats.iterrows():
+            try:
+                if index % 100 == 0:
+                    print(index)
+                date = row[1]
+                team = row[2]
+                next_match_stats = self.findMatchResult(team, date)
+                team_data = self.time_series[self.time_series['Team 1'].str.contains(team)]
+                i = 1
+                
+                for idx, match in team_data.iterrows():
+                    match_date = match[1]
+                    team_name = match[2]
+
+                    if match_date < date and i <= seq_len:
+                        out_data[index][seq_len - i] = torch.from_numpy(match[5:].to_numpy(dtype = np.float64)) # Automatically pads with zeros, as the data is added in reverse order # Most recent matches at the bottom
+                        targets[index][seq_len - i] = next_match_stats
+                        next_match_stats = self.findMatchResult(team_name, match_date)
+                        i += 1
+
+            except Exception as e:
+                #print(e)
+                pass
+
+        torch.save(out_data, 'encoder_training_data.pt')
+        torch.save(targets, 'encoder_targets.pt')
+
     
     # Creates the encoder training data
     def createEncoderData(self, batch_size, seq_len, n_features): # Implement removal of unused rows for training data tensor
         # train_data: pandas dataframe
         out_data = torch.zeros((len(self.time_series), seq_len, n_features))
-        targets = torch.zeros((len(self.time_series), seq_len, 14))
+        targets = torch.zeros((len(self.time_series), seq_len, 28))
 
         # For all matches, try to get the sequence of matches leading to it
         # Load into out_data tensor
@@ -815,7 +875,7 @@ class Data:
                         i += 1
 
             except Exception as e:
-                print(e)
+                #print(e)
                 pass
 
             #print(out_data[index])
@@ -989,7 +1049,7 @@ class Data:
             return concat_tensor.reshape(1, seq_len, n_features * 2) # Adds batch dimension
 
         except Exception as e:
-            print('Not enough data available for this match')
+            #print('Not enough data available for this match')
             return None
 
 if __name__ == '__main__':
@@ -1001,7 +1061,8 @@ if __name__ == '__main__':
     #data.updateData()
     #data.createTimeSeriesData()
     #data.createEncoderData(batch_size = 100, seq_len = 12, n_features = 44)
-    data.createPretrainingData(12, 44)
-    data.createTrainingData(12, 44)
-    data.updateData()
+    data.createEncoderDataResultTargets(batch_size = 100, seq_len = 12, n_features = 44)
+    # data.createPretrainingData(12, 44)
+    # data.createTrainingData(12, 44)
+    # data.updateData()
     print('Finished in %s seconds' % round(time.time() - start_time, 2))
