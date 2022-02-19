@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from Model import Model
+from PostTrainingModel import PostTrainingModel
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
@@ -20,8 +20,6 @@ def generate_mask(seq_len, batch_size = 100):
     #mask = mask.repeat(batch_size) ## Check if this is correct
     return mask
 
-
-
 class Train():
     def __init__(self, model, means, stds):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -36,9 +34,8 @@ class Train():
         
         #predictor = Predictor()
         data = Data()
-        self.model.eval()
 
-        odds_df = pandas.read_csv('TestOdds4.csv')
+        odds_df = pandas.read_csv('TestOdds1.csv')
         i = 0
         returns = 0
         t_est = 0
@@ -79,7 +76,6 @@ class Train():
                 #     print(prediction_data1)
 
                 model.eval()
-                model.evaluate()
                 prediction_data1 = prediction_data1.to(device)
                 prediction_data1 -= means
                 prediction_data1 /= stds
@@ -115,7 +111,7 @@ class Train():
                 est_return3 = round(chance_loss * float(odds3), 3)
 
                 min_return = 1
-                max_return = 100
+                max_return = 10
 
                 if est_return1 > min_return and est_return1 > est_return2 and est_return1 > est_return3 and est_return1 < max_return: #est_return1 > min_return and 
                     chosen_bet = 0
@@ -156,23 +152,22 @@ class Train():
                 #print(e)
                 pass
 
-        return round(t_est / i, 3), round(returns / i, 3)
+        return round(t_est / i, 3)
 
     def train(self, training_data):
-        num_epochs = 300 #1500
-        lr = 5e-4 #1e-5 # Learning rate
+        num_epochs = 15
+        lr = 3e-2 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 500
-        warmup_steps = 50
+        warmup_steps = 0
         seq_len = 12
         n_features = 44
         n_out = 14
         lowest_est = 2
-        highest_act = 1
 
         start_time = time.time()
         plot_loss = np.empty((num_epochs), dtype = float)
-        plot_est_returns = np.empty((num_epochs, 2), dtype = float)
+        plot_est_returns = np.empty((num_epochs), dtype = float)
         plot_scaler = np.empty((num_epochs), dtype = float)
 
         X = torch.load('training_data.pt').to(self.device)
@@ -200,13 +195,15 @@ class Train():
         val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = batch_size, shuffle = False, num_workers = 0)
 
         base_params = self.model.model.parameters()
-        softmax_params = self.model.softmax.parameters()
+        softmax_params = self.model.model.softmax.parameters()
 
         criterion = nn.MSELoss() #nn.L1Loss() #nn.MSELoss() #nn.CrossEntropyLoss()
-        optimizer = optim.Adam([
-                {'params': base_params},
-                {'params': softmax_params, 'lr': lr * 100}
-            ], lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
+        # optimizer = optim.Adam([
+        #         {'params': base_params},
+        #         {'params': softmax_params, 'lr': lr * 2e+4}
+        #     ], lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
+
+        optimizer = optim.Adam(base_params, lr = lr, weight_decay = wd) # 5e-6   1e-8 #1e-3
 
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [], gamma = 1e-1) #3, 6, 10, 20, 30, 40, 50
 
@@ -219,7 +216,7 @@ class Train():
             epoch_start = time.time()
 
             print('Epoch: ', epoch)
-            #print(self.model.softmax.scaler.item())
+            print(self.model.model.softmax.scaler.item())
             train_loss = 0.0
             self.model.train()
 
@@ -261,20 +258,15 @@ class Train():
             # valid_accuracy = check_accuracy(val_dataloader)
             # print(valid_accuracy, '% Validation Accuracy')
             print('Validation Loss: ', valid_loss)
-            est_returns, act_returns = self.test()
-            plot_est_returns[epoch, 0] = est_returns #valid_loss
-            plot_est_returns[epoch, 1] = act_returns
+            est_returns = self.test()
+            plot_est_returns[epoch] = est_returns #valid_loss
             plot_loss[epoch] = valid_loss #valid_loss
-            #plot_scaler[epoch] = self.model.softmax.scaler.item()
+            plot_scaler[epoch] = self.model.model.softmax.scaler.item()
             print('Epoch time: %s seconds' % round(time.time() - epoch_start, 2))
 
             if est_returns < lowest_est:
                 lowest_est = est_returns
-                torch.save(self.model, 'best_model.pt')
-
-            if act_returns > highest_act:
-                highest_act = act_returns
-                torch.save(self.model, 'best_performing_model.pt')
+                torch.save(self.model, 'posttrained_model.pt')
 
         print('Finished in %s seconds' % round(time.time() - start_time, 1))
         plt.plot(plot_loss)
@@ -288,7 +280,7 @@ class Train():
         plt.show()
 
         plt.plot(plot_est_returns)
-        plt.ylabel('Est Returns (Blue) // Actual  Returns (Orange)') #('Validation Loss')
+        plt.ylabel('Esitmated Returns') #('Validation Loss')
         plt.xlabel('Epoch')
         plt.show()
 
@@ -299,11 +291,10 @@ class Train():
         torch.save(self.stds, 'trained_stds.pt')
         print('Saved means and standard deviations')
         print('Lowest est_returns:', lowest_est)
-        print('Highest act_returns:', highest_act)
 
 if __name__ == '__main__':
     data = Data()
-    model = Model()
+    model = PostTrainingModel()
     means = torch.zeros((40))
     stds = torch.zeros((40))
     pretrain_data = data.pretrain_data

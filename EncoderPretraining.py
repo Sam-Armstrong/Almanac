@@ -32,10 +32,10 @@ class PreTrain():
         print(len(training_data))
 
         num_epochs = 100
-        lr = 5e-5 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        lr = 5e-6 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 500
-        warmup_steps = 2
+        warmup_steps = 50
         seq_len = 12
         n_features = 44
         n_out = 14
@@ -45,6 +45,8 @@ class PreTrain():
 
         X = torch.load('encoder_training_data.pt').to(self.device)
         y = torch.load('encoder_targets.pt').to(self.device)
+
+        print(X.shape)
 
         # X shape: (480, 100, 12, 44)
         # y shape: (480, 100, 12, 14)
@@ -96,28 +98,36 @@ class PreTrain():
             self.model.train()
 
             for batch_idx, (data, labels) in enumerate(train_dataloader):               
-                data = data.float().to(self.device)
+                data = data.float().to(self.device) # shape: (batch_size, 100, 12, 44)
+                labels = labels.float()
+                avg_opp_data = labels[:, :, 28:].to(self.device) # shape: (batch_size, 100, 12, 14)
+                labels = labels[:, :, :28]
                 labels = labels.to(self.device)
 
-                scores = self.model(data) # Runs a forward pass of the model for all the data
-                #print(scores)
-                loss = criterion(scores.float(), labels.float()).float() # Calculates the loss of the forward pass using the loss function
-                train_loss += loss
+                if torch.sum(labels).item() != 0 and torch.sum(avg_opp_data).item() != 0:
+                    scores = self.model(data, avg_opp_data) # Runs a forward pass of the model for all the data
+                    loss = criterion(scores.float(), labels.float()).float() # Calculates the loss of the forward pass using the loss function
+                    train_loss += loss
 
-                optimizer.zero_grad() # Resets the optimizer gradients to zero for each batch
-                loss.backward() # Backpropagates the network using the loss to calculate the local gradients
+                    optimizer.zero_grad() # Resets the optimizer gradients to zero for each batch
+                    loss.backward() # Backpropagates the network using the loss to calculate the local gradients
 
-                optimizer.step() # Updates the network weights and biases
+                    optimizer.step() # Updates the network weights and biases
+                else:
+                    print('skipping batch') #####Fix encoder training data creation so that it validates labels/data rows are not all zeros before adding them to the system - and the training data tensor is adaptively sized so there are no excess rows of zeros
 
             valid_loss = 0.0
             self.model.eval()
 
             for batch_idx, (data, labels) in enumerate(val_dataloader):
                 with torch.no_grad():
-                    data = data.float().to(self.device)
+                    data = data.float().to(self.device) # shape: (batch_size, 100, 12, 44)
+                    labels = labels.float()
+                    avg_opp_data = labels[:, :, 28:].to(self.device) # shape: (batch_size, 100, 12, 14)
+                    labels = labels[:, :, :28]
                     labels = labels.to(self.device)
                     
-                    target = self.model(data)
+                    target = self.model(data, avg_opp_data)
                     loss = criterion(target, labels).float()
                     valid_loss = loss.item() * data.size(0)
 
@@ -145,7 +155,7 @@ class PreTrain():
 
 if __name__ == '__main__':
     data = Data()
-    model = EncoderModel(440, 12, 8, 440)
+    model = EncoderModel(440, 12, 5, 880)
     means = torch.zeros((40))
     stds = torch.zeros((40))
     pretrain_data = data.pretrain_data

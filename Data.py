@@ -803,44 +803,52 @@ class Data:
     def createEncoderDataResultTargets(self, batch_size, seq_len, n_features): # Implement removal of unused rows for training data tensor
         # train_data: pandas dataframe
         out_data = torch.zeros((len(self.time_series), seq_len, n_features))
-        targets = torch.zeros((len(self.time_series), seq_len, 3))
-
-        # For all matches, try to get the sequence of matches leading to it
-        # Load into out_data tensor
-        # Load in targets
-        # Ensure the size of the tensors is correct
-        # Batch the tensors?
-        # Return these tensors
+        targets = torch.zeros((len(self.time_series), seq_len, 42)) # 28 (targets) + 14 (avg opposition data)
 
         # Adding the sequential data for each match into a tensor. Also creating the target values
         for index, row in self.match_stats.iterrows():
             try:
-                if index % 100 == 0:
+                if index % 10 == 0:
                     print(index)
                 date = row[1]
-                team = row[2]
-                next_match_stats = self.findMatchResult(team, date)
-                team_data = self.time_series[self.time_series['Team 1'].str.contains(team)]
+                team1 = row[2]
+                date_results = self.match_results[self.match_results['Date'].str.contains(date)]
+                team2 = date_results[date_results['Team 1'].str.contains(team1)]['Team 2']
+                team2 = date_results[date_results['Team 2'].str.contains(team1)]['Team 1'] if team2.empty else team2
+                team2 = team2.item()
+                next_match_stats = torch.concat((torch.from_numpy(row[3:17].to_numpy(dtype = np.float64)), torch.from_numpy(np.asarray(self.findMatchStats(team2, date)))), dim = -1)
+                team_data = self.time_series[self.time_series['Team 1'].str.contains(team1)]
                 i = 1
                 
                 for idx, match in team_data.iterrows():
                     match_date = match[1]
                     team_name = match[2]
+                    opp_team = match[3]
 
                     if match_date < date and i <= seq_len:
                         out_data[index][seq_len - i] = torch.from_numpy(match[5:].to_numpy(dtype = np.float64)) # Automatically pads with zeros, as the data is added in reverse order # Most recent matches at the bottom
-                        targets[index][seq_len - i] = next_match_stats
-                        next_match_stats = self.findMatchResult(team_name, match_date)
+                        targets[index][seq_len - i][:28] = next_match_stats
+                        targets[index][seq_len - i][28:] = torch.from_numpy(np.asarray(self.findTeamStats(opp_team, match_date)))
+                        next_match_stats = torch.from_numpy(match[7:35].to_numpy(dtype = np.float64))
                         i += 1
 
             except Exception as e:
                 #print(e)
                 pass
+        
 
         torch.save(out_data, 'encoder_training_data.pt')
         torch.save(targets, 'encoder_targets.pt')
+        torch.save(new_training, 'encoder_training_data_no_zeros.pt')
+        torch.save(new_targets, 'encoder_targets_no_zeros.pt')
+        new_training = out_data[out_data.sum(dim = 0) != 0]
+        new_targets = targets[targets.sum(dim = 0) != 0]
+        print('out_data shape:', out_data.shape)
+        print('out_data with zeros removed shape:', new_training.shape)
+        print('targets shape:', targets.shape)
+        print('targets with zeros removed shape:', new_targets.shape)
+        
 
-    
     # Creates the encoder training data
     def createEncoderData(self, batch_size, seq_len, n_features): # Implement removal of unused rows for training data tensor
         # train_data: pandas dataframe
@@ -1020,6 +1028,7 @@ class Data:
     def findTimeSeries(self, team1, team2, date, seq_len = 12, n_features = 44):
         team1_data = self.time_series[self.time_series['Team 1'].str.contains(team1)]
         team2_data = self.time_series[self.time_series['Team 1'].str.contains(team2)]
+        #print(date)
 
         try:
             team1_tensor = torch.zeros((seq_len, n_features))
@@ -1034,11 +1043,13 @@ class Data:
                 if match1_date < date and i1 <= seq_len:
                     team1_tensor[seq_len - i1] = torch.from_numpy(match1[5:].to_numpy(dtype = np.float64))
                     i1 += 1
+                    #print('    ', match1_date)
                     #print('adding', torch.from_numpy(match1[5:].to_numpy(dtype = np.float64)))
                 
                 if match2_date < date and i2 <= seq_len:
                     team2_tensor[seq_len - i2] = torch.from_numpy(match2[5:].to_numpy(dtype = np.float64))
                     i2 += 1
+                    #print('    ', match2_date)
 
             if i1 <= 3 or i2 <= 3: # At least three matches need to be in each of the sequences
                 raise

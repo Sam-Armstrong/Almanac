@@ -14,20 +14,27 @@ def generate_mask(seq_len, batch_size = 100):
 class EncoderModel(nn.Module):
     def __init__(self, n_features, seq_len, n_layers, forward_expansion):
         super(EncoderModel, self).__init__()
-        self.expansion = nn.Linear(44, n_features)
-        self.postional_encoding = PositionalEncoding(n_features, max_len = 12).to(device)
+        self.expansion = nn.Linear(44, n_features, bias = False)
+        self.positional_encoding = PositionalEncoding(n_features, max_len = 24).to(device)
         self.blocks = [TransformerBlock(n_features, seq_len, forward_expansion).to(device) for _ in range(n_layers)]
-        self.fc_out = nn.Linear(n_features, 14)
+        self.opp_expansion = nn.Linear(14, n_features)
+        self.fc1 = nn.Linear(n_features * 2, n_features, bias = False)
+        self.fc2 = nn.Linear(n_features, 28, bias = False)
+        self.gelu = nn.GELU()
 
-    def forward(self, x):
+    def forward(self, x, y):
         x = self.expansion(x)
-        x = self.postional_encoding(x)
+        x = self.positional_encoding(x)
+        y = self.opp_expansion(y)
         
         # Run the encoder on the input for team 1 and team 2
         for block in self.blocks:
             x = block(x)
 
-        z = self.fc_out(x)
+        z = torch.concat((x, y), dim = -1)
+        z = self.fc1(z)
+        z = self.gelu(z)
+        z = self.fc2(z)
         return z
 
 class PositionalEncoding(nn.Module):
@@ -53,7 +60,7 @@ class PositionalEncoding(nn.Module):
         x = x.reshape(seq_len, batch_size, n_features)
         x = x + self.pe[:x.size(0)]
         x = x.reshape(batch_size, seq_len, n_features)
-        return self.dropout(x)
+        return x #self.dropout(x)
 
 class TransformerBlock(nn.Module):
     def __init__(self, n_features, seq_len, forward_expansion):
@@ -76,17 +83,17 @@ class TransformerBlock(nn.Module):
             mask = None
 
         res = x.clone()
-        x = self.att(x, mask)
-        x = self.dropout(x)
-        x += res
         x = self.ln1(x)
+        x = self.att(x, mask)
+        #x = self.dropout(x)
+        x += res
 
         res = x.clone()
+        x = self.ln2(x)
         x = self.fc1(x)
         x = self.gelu(x)
         x = self.fc2(x)
-        x = self.dropout(x)
+        #x = self.dropout(x)
         x += res
-        x = self.ln2(x)
 
         return x

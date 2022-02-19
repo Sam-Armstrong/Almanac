@@ -31,11 +31,11 @@ class PreTrain():
     def train(self, training_data):
         print(len(training_data))
 
-        num_epochs = 50
-        lr = 3e-6 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        num_epochs = 200
+        lr = 2e-5 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 250
-        warmup_steps = 0
+        warmup_steps = 30
         seq_len = 12
         n_features = 44
         n_out = 14
@@ -137,7 +137,7 @@ class PreTrain():
 
 if __name__ == '__main__':
     data = Data()
-    model = PretrainingModel(440, 12, 10, 880)
+    model = PretrainingModel(440, 12, 5, 880)
     means = torch.zeros((40))
     stds = torch.zeros((40))
     pretrain_data = data.pretrain_data
