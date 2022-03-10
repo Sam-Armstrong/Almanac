@@ -29,10 +29,8 @@ class PreTrain():
         self.data = Data()
 
     def train(self, training_data):
-        print(len(training_data))
-
-        num_epochs = 200
-        lr = 2e-5 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        num_epochs = 100
+        lr = 2e-5 #1e-4  #2e-4 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 250
         warmup_steps = 30
@@ -51,14 +49,18 @@ class PreTrain():
 
         self.means = torch.mean(X, dim = 0)
         self.stds = torch.std(X, dim = 0)
+        self.min = torch.min(X)
+        self.max = torch.max(X)
         
         X -= self.means
         X /= self.stds
+        #X -= self.min
+        #X /= self.max
 
         train_data = []
         for i in range(len(X)):
             train_data.append([X[i], y[i]])
-
+        print(len(train_data))
         train_set, val_set = torch.utils.data.random_split(train_data, [17000, X.shape[0] - 17000]) # Splits the training data into a train set and a validation set
 
         train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 0)
@@ -85,7 +87,8 @@ class PreTrain():
             for batch_idx, (data, labels) in enumerate(train_dataloader):
                 data = data.float().to(self.device)
                 labels = labels.to(self.device)
-                labels = einops.repeat(labels, 'b n -> b s n', s = seq_len)
+                #labels = einops.repeat(labels, 'b n -> b s n', s = seq_len)
+                #print(data[0, :, 5])
 
                 team1 = data[:, :, :44] # shape: (500, 12, 44)
                 team2 = data[:, :, 44:]
@@ -104,7 +107,7 @@ class PreTrain():
                 with torch.no_grad():
                     data = data.float().to(self.device)
                     labels = labels.to(self.device)
-                    labels = einops.repeat(labels, 'b n -> b s n', s = seq_len)
+                    #labels = einops.repeat(labels, 'b n -> b s n', s = seq_len)
 
                     team1 = data[:, :, :44] # shape: (500, 12, 44)
                     team2 = data[:, :, 44:]
@@ -112,7 +115,7 @@ class PreTrain():
                     target = self.model(team1, team2)
                     #print(target[0])
                     loss = criterion(target, labels).float()
-                    valid_loss = loss.item() * data.size(0)
+                    valid_loss += loss.item() * data.size(0)
 
             scheduler.step()
 
@@ -137,7 +140,7 @@ class PreTrain():
 
 if __name__ == '__main__':
     data = Data()
-    model = PretrainingModel(440, 12, 5, 880)
+    model = PretrainingModel(44, 12, 5, 220)
     means = torch.zeros((40))
     stds = torch.zeros((40))
     pretrain_data = data.pretrain_data

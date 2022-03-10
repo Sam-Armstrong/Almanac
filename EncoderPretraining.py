@@ -31,11 +31,11 @@ class PreTrain():
     def train(self, training_data):
         print(len(training_data))
 
-        num_epochs = 100
-        lr = 5e-6 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
+        num_epochs = 70
+        lr = 5e-5 #5e-7 #1e-7 #3e-6 #8e-7 # Learning rate
         wd = 0 #1e-6 #3e-6 # Weight decay
         batch_size = 500
-        warmup_steps = 50
+        warmup_steps = 20
         seq_len = 12
         n_features = 44
         n_out = 14
@@ -45,8 +45,6 @@ class PreTrain():
 
         X = torch.load('encoder_training_data.pt').to(self.device)
         y = torch.load('encoder_targets.pt').to(self.device)
-
-        print(X.shape)
 
         # X shape: (480, 100, 12, 44)
         # y shape: (480, 100, 12, 14)
@@ -61,6 +59,8 @@ class PreTrain():
         
         X -= self.means
         X /= self.stds
+        #X -= torch.min(X)
+        #X /= torch.max(X)
 
         # X shape: (48004, 12, 44)
         # y shape: (48004, 12, 14)
@@ -155,7 +155,7 @@ class PreTrain():
 
 if __name__ == '__main__':
     data = Data()
-    model = EncoderModel(440, 12, 5, 880)
+    model = EncoderModel(44, 12, 5, 220)
     means = torch.zeros((40))
     stds = torch.zeros((40))
     pretrain_data = data.pretrain_data

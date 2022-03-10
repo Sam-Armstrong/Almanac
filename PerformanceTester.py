@@ -15,18 +15,20 @@ def test():
     #predictor = Predictor()
     data = Data()
 
-    odds_df = pandas.read_csv('TestOdds4.csv')
+    odds_df = pandas.read_csv('TestOdds1.csv')
     i = 0
     returns = 0
     t_est = 0
     num_correct = 0
     num_matches = 0
 
+    ### Test normalizing to minus the min? Also check how layernorm works (just 0 mean unit variance?)
+
     # model = Model().to(device)
     # model.load_state_dict(torch.load('trained_model.pickle'))
     # model.eval()
     #model = Model
-    model = torch.load('best_model.pt') #torch.load('BSF_best_model.pt')
+    model = torch.load('best_performing_model.pt') #torch.load('BSFCurrent2.pt')
     #model.softmax = adaSoft(weight_init = 1) #nn.Softmax(dim = -1)
     model.eval()
     model.model.eval()
@@ -36,6 +38,10 @@ def test():
     stds = torch.load('trained_stds.pt').to(device)
     means = means.reshape(1, means.shape[0], means.shape[1])
     stds = stds.reshape(1, stds.shape[0], stds.shape[1])
+    min = torch.load('min.pt')
+    max = torch.load('max.pt')
+
+    guesses = [0, 0, 0]
 
     for index, row in odds_df.iterrows():
         try:
@@ -65,16 +71,19 @@ def test():
             prediction_data1 = prediction_data1.to(device)
             prediction_data1 -= means
             prediction_data1 /= stds
+            #prediction_data1 -= min
+            #prediction_data1 /= max
             prediction1 = model.forward(prediction_data1[:, :, :44], prediction_data1[:, :, 44:])
             #prediction1 = torch.mean(prediction1, dim = 1)
-            prediction1 = prediction1[:, -1, :]
+            #prediction1 = prediction1[:, -1, :]
 
             prediction_data2 = prediction_data2.to(device)
             prediction_data2 -= means
             prediction_data2 /= stds
+            #prediction_data2 -= min
             prediction2 = model.forward(prediction_data2[:, :, :44], prediction_data2[:, :, 44:])
             #prediction2 = torch.mean(prediction2, dim = 1)
-            prediction2 = prediction2[:, -1, :]
+            #prediction2 = prediction2[:, -1, :]
 
             chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
             chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
@@ -165,6 +174,8 @@ def test():
                 i += 1
                 t_est += chosen_est
 
+            guesses[chosen_bet] += 1
+
             # print(team1, team2)
             # print(chosen_bet, result)
             # print(chance_win, chance_draw, chance_loss)
@@ -182,6 +193,7 @@ def test():
     print('Returns: ', round(returns, 3))
     print('Expected Return: ', round(t_est / i, 3))
     print('Average Return: ', round(returns / i, 3))
+    print('Guesses:', guesses)
 
 
 

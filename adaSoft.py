@@ -9,6 +9,6 @@ class adaSoft(nn.Module):
         self.scaler = nn.Parameter(data = initial_scaler, requires_grad = True)
 
     def forward(self, x):
-        x *= self.scaler
         x = self.softmax(x)
+        x *= self.scaler
         return x
