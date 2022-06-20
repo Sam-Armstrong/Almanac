@@ -1,138 +1,117 @@
-from Predictor import Predictor
+import math
 from Data import Data
 import pandas
-import numpy as np
+import torch
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def test():
-    predictors = []
-    #predictors.append(Predictor(model_name = 'best_model.pickle', eval = True))
-    predictors.append(Predictor(model_name = 'BSF1.pickle', eval = True))
-    # predictors.append(Predictor(model_name = 'En1.pickle', eval = True))
-    # predictors.append(Predictor(model_name = 'En2.pickle', eval = True))
-    # predictors.append(Predictor(model_name = 'En3.pickle', eval = True))
-
-    
-    #predictor = Predictor()
     data = Data()
 
-    df = pandas.read_csv('TestOdds2.csv')
+    offset = 1
+    odds_df = pandas.read_csv('test_odds.csv')
     i = 0
     returns = 0
     t_est = 0
     num_correct = 0
     num_matches = 0
+    
+    model = torch.load('model.pt')
+    model.no_transformer_grad()
+    model.eval()
+    model.model.eval()
+    model.model.encoder_model.eval()
+    for block in model.model.blocks:
+        block.eval()
 
-    for index, row in df.iterrows():
+    means = torch.load('trained_means.pt').to(device)
+    stds = torch.load('trained_stds.pt').to(device)
+    means = means.repeat(1, 12, 1)
+    stds = stds.repeat(1, 12, 1)
+
+    guesses = [0, 0, 0]
+
+    for n, (index, row) in enumerate(odds_df.iterrows()):
         try:
-            t_chance_win = 0
-            t_chance_draw = 0
-            t_chance_loss = 0
+            date = row[0 + offset]
+            team1 = row[1 + offset]
+            team2 = row[2 + offset]
+            result = row[3 + offset]
+            odds1 = row[4 + offset]
+            odds2 = row[5 + offset]
+            odds3 = row[6 + offset]
 
-            for predictor in predictors:
-                date = row[0]
-                team1 = row[1]
-                team2 = row[2]
-                result = row[3]
-                odds1 = row[4]
-                odds2 = row[5]
-                odds3 = row[6]
+            odds_list = [odds1, odds2, odds3]
+            string_result_array = [team1, 'Draw', team2]
 
-                prediction_data1 = [0] + (data.findTeamStats(team1, date)) + (data.findTeamStats(team2, date))
-                prediction_data2 = [1] + (data.findTeamStats(team2, date)) + (data.findTeamStats(team1, date))
+            prediction_data1 = data.findTimeSeries(team1, team2, date).to(device)
 
-                prediction_data1 = np.array([prediction_data1])
-                prediction_data2 = np.array([prediction_data2])
+            prediction_data1 -= means
+            prediction_data1 /= stds
+            prediction1 = model(prediction_data1[:, :, :44], prediction_data1[:, :, 44:]) / 100
 
-                prediction1 = predictor.predict(prediction_data1)
-                prediction2 = predictor.predict(prediction_data2)
+            chance_win = round(prediction1[0, 0].item(), 3)
+            chance_draw = round(prediction1[0, 1].item(), 3)
+            chance_loss = round(prediction1[0, 2].item(), 3)
 
-                chance_win = round((prediction1[0][0].item() + prediction2[0][2].item()) / 2, 3)
-                chance_draw = round((prediction1[0][1].item() + prediction2[0][1].item()) / 2, 3)
-                chance_loss = round((prediction1[0][2].item() + prediction2[0][0].item()) / 2, 3)
+            print(chance_win, chance_draw, chance_loss)
 
-                t_chance_win += chance_win
-                t_chance_draw += chance_draw
-                t_chance_loss += chance_loss
+            est_return1 = round(chance_win * odds1, 3)
+            est_return2 = round(chance_draw * odds2, 3)
+            est_return3 = round(chance_loss * odds3, 3)
 
-            # uncertainty = abs(prediction1[0][0].item() - prediction2[0][2].item()) + abs(prediction1[0][1].item() + prediction2[0][1].item()) + abs(prediction1[0][2].item() + prediction2[0][0].item())
+            min_return = 1 #1
+            max_return = 100 #1.5
 
-            # Doesn't seem to help
-            # if uncertainty < 1:
-            #     raise
+            bets = torch.zeros(3)
 
-            chance_win = t_chance_win / len(predictors)
-            chance_draw = t_chance_draw / len(predictors)
-            chance_loss = t_chance_loss / len(predictors)
+            if est_return1 > min_return and est_return1 < max_return:
+                bets[0] = est_return1
+            if est_return2 > min_return and est_return2 < max_return:
+                bets[1] = est_return2
+            if est_return3 > min_return and est_return3 < max_return:
+                bets[2] = est_return3
 
-            #print(chance_win, chance_draw, chance_loss)
+            chosen_est = torch.max(bets).item()
+            if chosen_est < min_return:
+                raise Exception('No value in betting')
 
-            est_return1 = round(chance_win * float(odds1), 3)
-            est_return2 = round(chance_draw * float(odds2), 3)
-            est_return3 = round(chance_loss * float(odds3), 3)
+            chosen_bet = torch.argmax(bets).item()
+            chosen_odds = odds_list[chosen_bet]
 
-            min_return = 1
-            max_return = 10
 
-            if est_return1 > min_return and est_return1 > est_return2 and est_return1 > est_return3 and est_return1 < max_return: #est_return1 > min_return and 
-                chosen_bet = 0
-                chosen_odds = odds1
-                chosen_est = est_return1
-            elif est_return2 > min_return and est_return2 >= est_return1 and est_return2 > est_return3 and est_return2 < max_return:
-                chosen_bet = 1
-                chosen_odds = odds2
-                chosen_est = est_return2
-            elif est_return3 > min_return and est_return3 >= est_return1 and est_return3 >= est_return2 and est_return3 < max_return:
-                chosen_bet = 2
-                chosen_odds = odds3
-                chosen_est = est_return3
+            if math.isnan(result) == False:
+                if chosen_est < min_return:
+                    pass
+                elif chosen_bet == int(result):
+                    i += 1
+                    returns += chosen_odds
+                    t_est += chosen_est
+                    num_correct += 1
+                else:
+                    i += 1
+                    t_est += chosen_est
+
             else:
-                chosen_bet = -1
-                chosen_odds = -1
-                chosen_est = 0
+                print(team1, 'vs', team2, '¦ Bet on:', string_result_array[chosen_bet])
 
-            # if chance_win > chance_draw and chance_win > chance_loss:
-            #     chosen_bet = 0
-            #     chosen_odds = odds1
-            # elif chance_draw >= chance_win and chance_draw > chance_loss:
-            #     chosen_bet = 1
-            #     chosen_odds = odds2
-            # elif chance_loss >= chance_draw and chance_loss >= chance_win:
-            #     chosen_bet = 2
-            #     chosen_odds = odds3
-            # else:
-            #     chosen_bet = -1
-            #     chosen_odds = -1
+            guesses[chosen_bet] += 1
 
-            if chosen_bet == -1:
-                pass
-            elif chosen_bet == int(result):
-                i += 1
-                returns += chosen_odds
-                t_est += chosen_est
-                num_correct += 1
-            else:
-                i += 1
-                t_est += chosen_est
-
-            # print(team1, team2)
-            # print(chosen_bet, result)
-            # print(chance_win, chance_draw, chance_loss)
-            # print(est_return1, est_return2, est_return3)
-            # print()
-            #print(uncertainty)
 
         except Exception as e:
+            print(team1, 'vs', team2, 'failed due to:', e)
             pass
 
-    print('i: ', i)
-    print('Number Correct: ', num_correct)
-    print('Accuracy: %s' % round(num_correct * 100 / i, 2))
-    print('Returns: ', round(returns, 3))
-    print('Expected Return: ', round(t_est / i, 3))
-    print('Average Return: ', round(returns / i, 3))
-
-
-
+    try:
+        print('i: ', i)
+        print('Number Correct: ', num_correct)
+        print('Accuracy: %s' % round(num_correct * 100 / i, 2))
+        print('Returns: ', round(returns, 3))
+        print('Expected Return: ', round(t_est / i, 3))
+        print('Average Return: ', round(returns / i, 3))
+        print('Guesses:', guesses)
+    except:
+        print('Nothing else to see')
 
 if __name__ == '__main__':
     test()

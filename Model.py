@@ -1,100 +1,60 @@
 import torch
 import torch.nn as nn
-import math
+from EncoderPretrainingModel import EncoderModel
+
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Model(nn.Module):
-    def __init__(self) -> None:
+    
+    def __init__(self, n_features, seq_len, n_layers, forward_expansion) -> None:
         super(Model, self).__init__()
-
-        self.dropout = nn.Dropout(p = 0.1)
-        self.gelu = nn.GELU()
-        self.softmax = nn.Softmax(dim = -1)
         
-        self.fc1 = nn.Linear(29, 580, bias = False) # , bias = False ??
-        self.fc2 = nn.Linear(580, 1160, bias = True)
-        self.fc3 = nn.Linear(1160, 580, bias = True)
-        self.fc4 = nn.Linear(580, 1160, bias = True)
-        self.fc5 = nn.Linear(1160, 580, bias = True)
-        self.fc6 = nn.Linear(580, 1160, bias = True)
-        self.fc7 = nn.Linear(1160, 580, bias = True)
-        self.fc8 = nn.Linear(580, 1160, bias = True)
-        self.fc9 = nn.Linear(1160, 580, bias = True)
-        self.fc10 = nn.Linear(580, 3, bias = False)
+        self.seq_len = seq_len
+        self.n_features = n_features
+        
+        self.encoder_model = EncoderModel(n_features, seq_len, n_layers, forward_expansion).to(device)
+        self.encoder_model.load_state_dict(torch.load('pretrained_encoder_model.pickle'))
+        
+        self.blocks = self.encoder_model.blocks
+        self.expansion = self.encoder_model.expansion
+        self.pe = self.encoder_model.position_embedding
 
-        # Kaiming (He) weight initialization for fully connected layers
-        self.fc1.weight.data.normal_(0, math.sqrt(2 / 580))
-        self.fc2.weight.data.normal_(0, math.sqrt(2 / 1740)) # 2 / math.sqrt(580)
-        self.fc3.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc4.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc5.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc6.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc7.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc8.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc9.weight.data.normal_(0, math.sqrt(2 / 1740))
-        self.fc10.weight.data.normal_(0, math.sqrt(2 / 580)) # 2/3
+        self.ln_out = nn.LayerNorm(n_features * 2)
+        self.fc_out = nn.Linear(150 * 12 * 2, 3, bias = False)
+        self.softmax = nn.Softmax(dim = -1)
+    
 
-        # self.div_param = torch.nn.Parameter(torch.tensor(200.0))
+    def forward(self, x, y):
+        batch_size = x.shape[0]
+        
+        # Add the position embedding and expand the input data for both teams
+        pos_embedding = self.pe(torch.arange(0, self.seq_len).reshape(1, self.seq_len).type(torch.LongTensor).to(device)).repeat(batch_size, 1, 1)
+        x = torch.concat((pos_embedding, x), dim = -1)
+        x = self.expansion(x)
+        
+        pos_embedding = self.pe(torch.arange(0, self.seq_len).reshape(1, self.seq_len).type(torch.LongTensor).to(device)).repeat(batch_size, 1, 1)
+        y = torch.concat((pos_embedding, y), dim = -1)
+        y = self.expansion(y)
+        
+        # Run the encoder on the input for team 1 and team 2
+        x = self.blocks(x)
+        y = self.blocks(y)
 
-        # self.fc1.bias.data.zero_()
-        self.fc2.bias.data.zero_()
-        self.fc3.bias.data.zero_()
-        self.fc4.bias.data.zero_()
-        self.fc5.bias.data.zero_()
-        self.fc6.bias.data.zero_()
-        self.fc7.bias.data.zero_()
-        self.fc8.bias.data.zero_()
-        self.fc9.bias.data.zero_()
-        # self.fc10.bias.data.zero_()
+        # Concatenate the output for each team and run it through the final layers
+        z = torch.concat((x, y), dim = -1)
+        z = self.ln_out(z)
+        z = z.reshape(z.shape[0], self.n_features * self.seq_len * 2)
 
-        self.ln = nn.LayerNorm((580))
-        self.ln1 = nn.LayerNorm((580))
-        self.ln2 = nn.LayerNorm((580))
-        self.ln3 = nn.LayerNorm((580))
-        self.ln4 = nn.LayerNorm((580))
-        self.ln5 = nn.LayerNorm((580))
-        self.ln6 = nn.LayerNorm((580))
-        self.ln7 = nn.LayerNorm((580))
-        self.ln8 = nn.LayerNorm((580))
+        # Output, softmax, and scale
+        z = self.fc_out(z)
+        z = self.softmax(z)
+        return z * 100
 
-    def forward(self, x):
-        x = self.fc1(x)
-        #x = self.ln(x)
-        x = self.dropout(x)
-
-        #res = x.clone()
-        x = self.fc2(x)
-        x = self.gelu(x)
-        x = self.fc3(x)
-        #x += res
-        x = self.ln2(x)
-        x = self.dropout(x)
-
-        #res = x.clone()
-        x = self.fc4(x)
-        x = self.gelu(x)
-        x = self.fc5(x)
-        #x += res
-        x = self.ln3(x)
-        x = self.dropout(x)
-
-        #res = x.clone()
-        x = self.fc6(x)
-        x = self.gelu(x)
-        x = self.fc7(x)
-        #x += res
-        x = self.ln4(x)
-        x = self.dropout(x)
-
-        #res = x.clone()
-        x = self.fc8(x)
-        x = self.gelu(x)
-        x = self.fc9(x)
-        #x += res
-        x = self.ln5(x)
-
-        x = self.fc10(x)
-
-        x = x / math.sqrt(580) #120 #580 #math.sqrt(580) # Scale to reduce vanishing gradient problem
-        x = self.softmax(x)
-
-        return x
+    def no_transformer_grad(self):
+        for param in self.blocks.parameters():
+            param.requires_grad = False
+        for param in self.expansion.parameters():
+            param.requires_grad = False
+        for param in self.pe.parameters():
+            param.requires_grad = False
